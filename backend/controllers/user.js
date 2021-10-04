@@ -14,47 +14,74 @@ const connection = mysql.createConnection({
 connection.query = promisify(connection.query);
 
 exports.signup = (req, res, next) => {
-  connection
-    .query(`SELECT email from User where email = '${req.body.email}'`)
-    .then((results) => {
-      if (results[0]) {
-        res.status(401).json({ message: "le compte existe déjà" });
-      } else {
-        bcrypt
-          .hash(req.body.password, 10)
-          .then((hash) => {
-            connection.query(
-              `insert into User(firstname,lastname,email,password) values('${req.body.firstname}','${req.body.lastname}','${req.body.email}','${hash}')`
-            );
-          })
-          .then(() => res.status(201).json({ message: "Utilisateur créé !" }))
-          .catch((error) => res.status(400).json({ error }));
-      }
+  const regex = [
+    (firstnameRegEx = /^[a-z '-]+$/i),
+    (lastnameRegEx = /^[a-z '-]+$/i),
+    (emailRegEx = /.+\@.+\..+/),
+    (passwordRegEx = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z])(?!.*\s).*$/),
+  ];
+
+  const needVerification = [
+    (firstname = req.body.firstname),
+    (lastname = req.body.lastname),
+    (email = req.body.email),
+    (password = req.body.password),
+  ];
+
+  if (
+    firstnameRegEx.test(firstname) &&
+    lastnameRegEx.test(lastname) &&
+    emailRegEx.test(email) &&
+    passwordRegEx.test(password)
+  ) { // Verification que l'adresse mail n'existe pas déjà afin de pouvoir créer le compte
+    connection
+      .query(`SELECT email from User where email = ?`, [req.body.email])
+      .then((results) => {
+        if (results[0]) {
+          res.status(401).json({ message: "le compte existe déjà" });
+        } else {
+          bcrypt
+            .hash(req.body.password, 10)
+            .then((hash) => {
+              connection.query(
+                `insert into User(firstname,lastname,email,password) values(?,?,?,?)`[
+                  (req.body.firstname, req.body.lastname, req.body.email, hash)
+                ]
+              );
+            })
+            .then(() => res.status(201).json({ message: "Utilisateur créé !" }))
+            .catch((error) => res.status(400).json({ error }));
+        }
+      });
+  } else {
+    res.status(402).json({
+      message: "Les données envoyées ne respectent pas le format requis",
     });
+  }
 };
 
 exports.login = (req, res, next) => {
   try {
     connection
       .query(
-        `SELECT email, user_id, password from User where email = '${req.body.email}'`
+        `SELECT email, user_id, password from User where email = ?`,[req.body.email]
       )
       .then((results) => {
-        if (results.length == 0) {
+        if (results.length == 0 || req.body.email == undefined) { // Vérification que l'utilisateur existe dans la base de donnée
           res.status(401).end("Utilisateur ou mot de passe incorrect !");
-        } else if (req.body.password == undefined) {
+        } else if (req.body.password == undefined ) { // Vérification qu'un mot de passe soit bien tapé
           res.status(401).end("Utilisateur ou mot de passe incorrect !");
-        } else {
+        } else { // Si les deux premières conditions sont bonnes -> Vérification du mot de passe avec la base de donnée
           bcrypt
-            .compare(req.body.password, results[0].password)
+            .compare(req.body.password, results[0].password) 
             .then((valid) => {
-              if (!valid) {
+              if (!valid) { // Si les mots de passe sont différents
                 return res
                   .status(401)
                   .json({ error: "Utilisateur ou mot de passe incorrect !" });
               }
 
-              res.status(200).json({
+              res.status(200).json({// Si c'est bon on créer un token à partir de user_id
                 token: jwt.sign(
                   {
                     userId: results[0].user_id,
@@ -72,74 +99,71 @@ exports.login = (req, res, next) => {
 };
 
 exports.update = (req, res, next) => {
-  // Il faut vérifier que celui qui veut modifier soit l'utilisateur
+  if (req.body.userId === null) { // Si aucun userId n'est donné lors de la requête
+    return res.status(401).end("Utilisateur non identifié");
+  } else {
+    connection
+      .query(`SELECT user_id from User where user_id=?`,[req.body.userId])
+      .then((results) => { //Vérification que l'utilisateur qui veut modifier le profil soit l'utilisateur lui-même
+        if (results[0] === undefined || req.body.userId != results[0].user_id) {
+          return res
+            .status(401)
+            .end("Vous ne pouvez pas modifier cet utilisateur");
+        } else {
+          const { userId, firstname, lastname, email, password } = req.body;
+          if (password) { // S'il change que le mot de passe
+            bcrypt
+              .hash(req.body.password, 10)
+              .then((hash) => {
+                connection.query(
+                  `UPDATE User SET password = ? where user_id = ?`, [hash, userId]
+                );
+              })
+              .then(() => {
+                return res
+                  .status(201)
+                  .json({ message: "mot de passe modifié !" });
+              })
+              .catch((error) => res.status(400).json({ error }));
+          } else if (req.file) { // S'il modifie l'image
+            connection
+              .query(`SELECT imageURL from User where user_id = ?`, [userId])
+              .then((results) => {
+                const filepath = results[0];
+                fs.unlinkSync(filepath);
+              })
+              .catch((error) => res.status(500).json);
 
-  function verifiedUser(results) {
-    if (req.body.userId != results[0].user_id) {
-      res.status(403).json({ error: "vous ne pouvez pas modifier ce post" });
-    } else {
-      const { userId, firstname, lastname, email, password } = req.body;
-
-      if (password) {
-        bcrypt
-          .hash(req.body.password, 10)
-          .then((hash) => {
-            connection.query(
-              `UPDATE User SET password = '${hash}' where user_id = ${userId} `
-            );
-          })
-          .then(() =>
-            res.status(201).json({ message: "mot de passe modifié !" })
-          )
-          .catch((error) => res.status(400).json({ error }));
-      } else if (req.file) {
-        connection
-          .query(`SELECT imageURL from User where user_id = ${userId}`)
-          .then((results) => {
-            const filepath = results[0];
-            fs.unlinkSync(filepath);
-          })
-          .catch((error) => res.status(500).json);
-
-        connection
-          .query(
-            `UPDATE User SET imageURL = '${req.protocol}://${req.get(
-              "host"
-            )}/images/${req.file.filename}' where user_id='${userId}'`
-          )
-          .then(() => res.status(200).json({ message: "image modifiée !" }))
-          .catch((error) =>
-            res.status(400).json({ error: "image non modifiée" })
-          );
-      } else {
-        connection
-          .query(
-            `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
-            [firstname, lastname, email, userId]
-          )
-          .then(res.status(201).json({ message: "Utilisateur modifié !" }))
-          .catch(res.status(401).json({ error: "utilisateur non modifié" }));
-      }
-    }
+            connection
+              .query(
+                `UPDATE User SET imageURL = '${req.protocol}://${req.get(
+                  "host"
+                )}/images/${req.file.filename}' where user_id=?`,[userId]
+              )
+              .then(() => res.status(200).send({ message: "image modifiée !" }))
+              .catch((error) =>
+                res.status(400).send({ error: "image non modifiée" })
+              );
+          } else { // S'il modifie son prénom, nom ou adresse mail
+            connection
+              .query(
+                `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
+                [firstname, lastname, email, userId]
+              )
+              .then(res.status(201).send({ message: "Utilisateur modifié !" }))
+              .catch({ error: "utilisateur non modifié" });
+          }
+        }
+      })
+      .catch(console.log("erreur serveur"));
   }
-
-  if(req.body.userId) {
-  connection
-    .query(`Select user_id from User where user_id='${req.body.userId}'`)
-    .then((results) => {
-      verifiedUser(results);
-      console.log(results);
-    });}
-    else {
-      res.status(403).end("L'id utilisateur n'a pas été detecté")
-    }
 };
 
 exports.getOneUser = (req, res, next) => {
   connection
     .query(
       `
-  select firstname, lastname, email, imageUrl from User where user_id =${req.body.userId}`
+  select firstname, lastname, email, imageUrl from User where user_id =?`, [req.body.userId]
     )
     .then((user) => res.status(200).json(user))
     .catch((error) => res.status(404).json({ error }));

@@ -30,8 +30,8 @@ app.use('/files', express.static(path.join(__dirname, `/files`)));
 console.log(__dirname);
 app.use('/api/user', userRoutes); 
 app.use('/api/post', postRoutes); 
-app.use('/api/like', likeRoutes);
-app.use('api/post/comment', commentRoutes);
+app.use('/api/post/like', likeRoutes);
+app.use('/api/post/:id/comment', commentRoutes);
 
 module.exports = app;
 
