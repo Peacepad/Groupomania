@@ -71,3 +71,7 @@ exports.delete = (req, res, next) => {
     }
   }
 };
+
+exports.commentForOneArticle = (req, res, next) => {
+  connection.query(`SELECT body from comment where post_id = ? [post_id]`)
+}
