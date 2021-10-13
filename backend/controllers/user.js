@@ -44,13 +44,13 @@ exports.signup = (req, res, next) => {
             .hash(req.body.password, 10)
             .then((hash) => {
               connection.query(
-                `insert into User(firstname,lastname,email,password) values(?,?,?,?)`[
-                  (req.body.firstname, req.body.lastname, req.body.email, hash)
+                `insert into User(firstname,lastname,email,password) values(?,?,?,?)`,[
+                  req.body.firstname, req.body.lastname, req.body.email, hash
                 ]
               );
             })
-            .then(() => res.status(201).json({ message: "Utilisateur créé !" }))
-            .catch((error) => res.status(400).json({ error }));
+            .then(() => {return res.status(201).json({ message: "Utilisateur créé !" })})
+            .catch((error) => {return res.status(400).json({ error })});
         }
       });
   } else {

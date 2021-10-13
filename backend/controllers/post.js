@@ -1,6 +1,7 @@
 const mysql = require("mysql");
 const { promisify } = require("util");
 const fs = require("fs");
+const jwt = require('jsonwebtoken');
 
 const connection = mysql.createConnection({
   host: "localhost",
@@ -16,28 +17,39 @@ exports.create = (req, res, next) => {
   let bodyRequest = req.body.text;
   let bodySave = bodyRequest.replace(`'`, `''`);
 
+  //
+  const token = req.headers.authorization.split(' ')[1];
+  const decodedToken = jwt.verify(token, 'M0N_T0K3N_3ST_1NTR0UV4BL3');
+  const userId = `${decodedToken.userId}`;
+
+  //
+
   if (req.file) {
+
+    const imageUrl = `${req.protocol}://${req.get("host")}/images/${req.file.filename}`;
     connection
       .query(
         `INSERT INTO Post(user_id, body, date, imageURL) values (?, ?, ?, ?)`,
         [
-          req.body.userId,
+          userId,
           bodySave,
           date,
-          `${req.protocol}://${req.get("host")}/images/${req.file.filename}`,
+          imageUrl,
         ]
       )
-      .then(() => res.status(201).json({ message: "Post créé !" }))
-      .catch((error) => res.status(400).json({ error }));
+      .then(() => {return res.status(201).json("Post créé !")})
+      .catch(() => {return res.status(401).send("le post n'a pas pu être créé")});
   }
+  else {
   connection
     .query(`INSERT INTO Post(user_id, body, date) values (?, ?, ?)`, [
-      req.body.userId,
+      userId,
       bodySave,
       date,
     ])
-    .then(() => res.status(201).json({ message: "Post créé !" }))
-    .catch((error) => res.status(400).json({ error }));
+    .then(() => {return res.status(201).json({ message: "Post créé !" })})
+    .catch(() => {return res.status(400).send("le post n'a pas pu être créé")});
+  }
 };
 
 exports.update = (req, res, next) => {
@@ -102,14 +114,11 @@ exports.delete = (req, res, next) => {
 };
 
 exports.getPost = (req, res, next) => {
-  if (req.body.userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
+ 
     connection
-      .query("Select * from Post")
+      .query("Select * from post JOIN (select firstname, lastname, user_id from user) as user ON user.user_id = post.user_id")
       .then((post) => res.status(200).json(post)
       )
       .catch((error) => res.status(500).send("server issue"));
-  }
+
 };
