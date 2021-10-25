@@ -5,8 +5,8 @@ const auth = require('../middleware/auth');
 
 
 
-router.post('/create', likeCtrl.create); //penser à mettre auth en middleware
-
+router.post('/', auth, likeCtrl.create); //penser à mettre auth en middleware
+router.get('/:id', auth, likeCtrl.getOne);
 
 
 

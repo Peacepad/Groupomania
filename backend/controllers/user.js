@@ -179,7 +179,7 @@ exports.getOneUser = (req, res, next) => {
   connection
     .query(
       `
-  select firstname, lastname, email, imageUrl from User where user_id =?`,
+  select firstname, lastname, email, imageUrl, user_id from User where user_id =?`,
       [req.params.id]
     )
     .then((user) => res.status(200).json(user))

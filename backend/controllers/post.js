@@ -96,20 +96,35 @@ exports.update = (req, res, next) => {
 };
 
 exports.delete = (req, res, next) => {
-  if (req.body.userId === null) {
+  const token = req.headers.authorization.split(' ')[1];
+  const decodedToken = jwt.verify(token, 'M0N_T0K3N_3ST_1NTR0UV4BL3');
+  const userId = `${decodedToken.userId}`;
+
+  if (userId === null) {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-    if (req.body.userId != results[0].user_id) {
-      res.status(403).json({ error: "vous ne pouvez pas supprimer ce post" });
-    } else {
-      connection
-        .query(`DELETE from Post where post_id=?`, [req.body.post_id])
-        .then(() => res.status(202).json({ message: "Le post à été supprimé" }))
-        .catch((error) =>
-          res.status(402).json({ error: "erreur lors de la suppression" })
-        );
-    }
+
+    connection.
+    query(`SELECT user_id from Post where post_id = ?`,[req.params.id])
+.then(
+      (results) => {
+        console.log(results[0].user_id)
+        if (userId != results[0].user_id) 
+        {
+        return res.status(403).json({ error: "vous ne pouvez pas supprimer ce post" });
+      } else {
+        connection
+          .query(`DELETE from Post where post_id=?`, [req.params.id])
+          .then(() => res.status(202).json({ message: "Le post à été supprimé" }))
+          .catch(() =>
+            {return res.status(402).json({ error: "erreur lors de la suppression" })}
+          );
+      }
+      }
+   )
+   .catch(() => {return res.status(403).json({ error: "Non vous ne pouvez pas supprimer ce post" });})
+    
   }
 };
 
