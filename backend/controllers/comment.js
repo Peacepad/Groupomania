@@ -1,15 +1,8 @@
 const mysql = require("mysql");
-const { promisify } = require("util");
+
 const fs = require("fs");
 
-const connection = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Peacedu07",
-  database: "groupomania",
-});
-
-connection.query = promisify(connection.query);
+const connection = require('../service/database');
 
 exports.create = (req, res, next) => {
   if (req.body.userId === null) {
@@ -18,7 +11,7 @@ exports.create = (req, res, next) => {
   } else {
     let date = new Date().toISOString().slice(0, 19).replace("T", " ");
     let bodyRequest = req.body.text;
-    let bodySave = bodyRequest.replace(`'`, `''`);
+    let bodySave = bodyRequest.replace(`'`, `%'`);
     connection
       .query(
         `INSERT INTO Comment(user_id, post_id, body, date) values (?, ?, ?, ?)`,

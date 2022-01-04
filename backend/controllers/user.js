@@ -1,17 +1,8 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
-const mysql = require("mysql");
-const { promisify } = require("util");
 
-const connection = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Peacedu07",
-  database: "groupomania",
-});
-
-connection.query = promisify(connection.query);
+const connection = require('../service/database');
 
 exports.signup = (req, res, next) => {
   const regex = [
@@ -108,20 +99,20 @@ exports.login = (req, res, next) => {
 };
 
 exports.update = (req, res, next) => {
-  if (req.body.userId === null) {
+  if (req.params.id === null) {
     // Si aucun userId n'est donné lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
     connection
-      .query(`SELECT user_id from User where user_id=?`, [req.body.userId])
+      .query(`SELECT user_id from User where user_id=?`, [req.params.id])
       .then((results) => {
         //Vérification que l'utilisateur qui veut modifier le profil soit l'utilisateur lui-même
-        if (results[0] === undefined || req.body.userId != results[0].user_id) {
+        if (results[0] === undefined || req.params.id != results[0].user_id) {
           return res
             .status(401)
             .end("Vous ne pouvez pas modifier cet utilisateur");
         } else {
-          const { userId, firstname, lastname, email, password } = req.body;
+          const { firstname, lastname, email, password } = req.body;
           if (password) {
             // S'il change que le mot de passe
             bcrypt
@@ -129,7 +120,7 @@ exports.update = (req, res, next) => {
               .then((hash) => {
                 connection.query(
                   `UPDATE User SET password = ? where user_id = ?`,
-                  [hash, userId]
+                  [hash, req.params.id]
                 );
               })
               .then(() => {
@@ -141,7 +132,7 @@ exports.update = (req, res, next) => {
           } else if (req.file) {
             // S'il modifie l'image
             connection
-              .query(`SELECT imageURL from User where user_id = ?`, [userId])
+              .query(`SELECT imageURL from User where user_id = ?`, [req.params.id])
               .then((results) => {
                 const filepath = results[0];
                 fs.unlinkSync(filepath);
@@ -153,7 +144,7 @@ exports.update = (req, res, next) => {
                 `UPDATE User SET imageURL = '${req.protocol}://${req.get(
                   "host"
                 )}/images/${req.file.filename}' where user_id=?`,
-                [userId]
+                [req.params.id]
               )
               .then(() => res.status(200).send({ message: "image modifiée !" }))
               .catch((error) =>
@@ -164,7 +155,7 @@ exports.update = (req, res, next) => {
             connection
               .query(
                 `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
-                [firstname, lastname, email, userId]
+                [firstname, lastname, email, req.params.id]
               )
               .then(res.status(201).send({ message: "Utilisateur modifié !" }))
               .catch({ error: "utilisateur non modifié" });

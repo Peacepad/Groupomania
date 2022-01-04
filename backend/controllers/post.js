@@ -1,54 +1,48 @@
 const mysql = require("mysql");
 const { promisify } = require("util");
 const fs = require("fs");
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 
-const connection = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "Peacedu07",
-  database: "groupomania",
-});
-
-connection.query = promisify(connection.query);
+const connection = require("../service/database");
 
 exports.create = (req, res, next) => {
   let date = new Date().toISOString().slice(0, 19).replace("T", " ");
-  let bodyRequest = req.body.text;
-  let bodySave = bodyRequest.replace(`'`, `''`);
 
   //
-  const token = req.headers.authorization.split(' ')[1];
-  const decodedToken = jwt.verify(token, 'M0N_T0K3N_3ST_1NTR0UV4BL3');
+  const token = req.headers.authorization.split(" ")[1];
+  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
   const userId = `${decodedToken.userId}`;
 
   //
 
   if (req.file) {
-
-    const imageUrl = `${req.protocol}://${req.get("host")}/images/${req.file.filename}`;
+    const imageUrl = `${req.protocol}://${req.get("host")}/images/${
+      req.file.filename
+    }`;
     connection
       .query(
         `INSERT INTO Post(user_id, body, date, imageURL) values (?, ?, ?, ?)`,
-        [
-          userId,
-          bodySave,
-          date,
-          imageUrl,
-        ]
+        [userId, req.body.text, date, imageUrl]
       )
-      .then(() => {return res.status(201).json("Post créé !")})
-      .catch(() => {return res.status(401).send("le post n'a pas pu être créé")});
-  }
-  else {
-  connection
-    .query(`INSERT INTO Post(user_id, body, date) values (?, ?, ?)`, [
-      userId,
-      bodySave,
-      date,
-    ])
-    .then(() => {return res.status(201).json({ message: "Post créé !" })})
-    .catch(() => {return res.status(400).send("le post n'a pas pu être créé")});
+      .then(() => {
+        return res.status(201).json("Post créé !");
+      })
+      .catch(() => {
+        return res.status(401).send("le post n'a pas pu être créé");
+      });
+  } else {
+    connection
+      .query(`INSERT INTO Post(user_id, body, date) values (?, ?, ?)`, [
+        userId,
+        req.body.text,
+        date,
+      ])
+      .then(() => {
+        return res.status(201).json({ message: "Post créé !" });
+      })
+      .catch(() => {
+        return res.status(400).send("le post n'a pas pu être créé");
+      });
   }
 };
 
@@ -96,44 +90,79 @@ exports.update = (req, res, next) => {
 };
 
 exports.delete = (req, res, next) => {
-  const token = req.headers.authorization.split(' ')[1];
-  const decodedToken = jwt.verify(token, 'M0N_T0K3N_3ST_1NTR0UV4BL3');
+  const token = req.headers.authorization.split(" ")[1];
+  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
   const userId = `${decodedToken.userId}`;
 
   if (userId === null) {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-
-    connection.
-    query(`SELECT user_id from Post where post_id = ?`,[req.params.id])
-.then(
-      (results) => {
-        console.log(results[0].user_id)
-        if (userId != results[0].user_id) 
-        {
-        return res.status(403).json({ error: "vous ne pouvez pas supprimer ce post" });
-      } else {
-        connection
-          .query(`DELETE from Post where post_id=?`, [req.params.id])
-          .then(() => res.status(202).json({ message: "Le post à été supprimé" }))
-          .catch(() =>
-            {return res.status(402).json({ error: "erreur lors de la suppression" })}
-          );
-      }
-      }
-   )
-   .catch(() => {return res.status(403).json({ error: "Non vous ne pouvez pas supprimer ce post" });})
-    
+    connection
+      .query(`SELECT user_id from post where post_id=?`, [req.params.id])
+      .then((results) => {
+        console.log(results[0].user_id);
+        if (userId != results[0].user_id) {
+          return res
+            .status(403)
+            .json({ error: "vous ne pouvez pas supprimer ce post" });
+        } else {
+          // il faut vérifier qu'il n'y ai pas la table like_post de concerner
+          connection
+            .query(`SELECT post_id from like_post where post_id=?`, [
+              req.params.id,
+            ])
+            .then((results) => {
+              if (results[0]) {
+                connection
+                  .query(`DELETE from like_post where post_id=?`, [
+                    req.params.id,
+                  ])
+                  .then(() => {
+                    console.log('les informations liées au post ont été supprimées')
+                  })
+                  .catch(() => {
+                    console.log("les informations liées au post n'ont pas été supprimées")
+                  });
+              }
+              //
+              connection
+                .query(`DELETE from Post where post_id=?`, [req.params.id])
+                .then(() =>
+                  res.status(202).json({ message: "Le post à été supprimé" })
+                )
+                .catch(() => {
+                  return res
+                    .status(402)
+                    .json({ error: "erreur lors de la suppression" });
+                });
+            });
+        }
+      })
+      .catch(() => {
+        return res
+          .status(403)
+          .json({ error: "Non vous ne pouvez pas supprimer ce post" });
+      });
   }
 };
 
 exports.getPost = (req, res, next) => {
- 
-    connection
-      .query("Select * from post JOIN (select firstname, lastname, user_id from user) as user ON user.user_id = post.user_id")
-      .then((post) => res.status(200).json(post)
-      )
-      .catch((error) => res.status(500).send("server issue"));
+  connection
+    .query(
+      "Select * from post JOIN (select firstname, lastname, user_id from user) as user ON user.user_id = post.user_id"
+    )
+    .then((post) => res.status(200).json(post))
+    .catch((error) => res.status(500).send("server issue"));
+};
 
+exports.getLikes = (req, res, next) => {
+  connection
+    .query("SELECT likes from Post where post_id= ?", [req.params.id])
+    .then((results) => {
+      return res.status(201).json(results[0].likes);
+    })
+    .catch(() => {
+      return res.status(401).json("Nombre de like non obtenu");
+    });
 };
