@@ -16,13 +16,13 @@ exports.create = (req, res, next) => {
   //
 
   if (req.file) {
-    const imageUrl = `${req.protocol}://${req.get("host")}/images/${
+    const postImageUrl = `${req.protocol}://${req.get("host")}/images/${
       req.file.filename
     }`;
     connection
       .query(
-        `INSERT INTO Post(user_id, body, date, imageURL) values (?, ?, ?, ?)`,
-        [userId, req.body.text, date, imageUrl]
+        `INSERT INTO Post(user_id, body, date, postImageURL) values (?, ?, ?, ?)`,
+        [userId, req.body.text, date, postImageUrl]
       )
       .then(() => {
         return res.status(201).json("Post créé !");
@@ -58,7 +58,7 @@ exports.update = (req, res, next) => {
       if (req.file) {
         // S'il y a une requête pour changer l'image
         connection
-          .query(`SELECT imageURL from Post where post_id = ?`, [post_id])
+          .query(`SELECT postImageURL from Post where post_id = ?`, [post_id])
           .then((results) => {
             const filepath = results[0];
             fs.unlinkSync(filepath);
@@ -66,7 +66,7 @@ exports.update = (req, res, next) => {
           .catch((error) => res.status(500).json);
         connection
           .query(
-            `UPDATE Post SET imageURL = '${req.protocol}://${req.get(
+            `UPDATE Post SET postImageURL = '${req.protocol}://${req.get(
               "host"
             )}/images/${req.file.filename}' where post_id=?`,
             [post_id]
@@ -150,7 +150,7 @@ exports.delete = (req, res, next) => {
 exports.getPost = (req, res, next) => {
   connection
     .query(
-      "Select * from post JOIN (select firstname, lastname, user_id from user) as user ON user.user_id = post.user_id"
+      "Select * from post JOIN (select firstname, lastname, user_id, imageURL from user) as user ON user.user_id = post.user_id"
     )
     .then((post) => res.status(200).json(post))
     .catch((error) => res.status(500).send("server issue"));

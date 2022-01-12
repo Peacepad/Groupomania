@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const fs = require("fs");
 
-const connection = require('../service/database');
+const connection = require("../service/database");
 
 exports.signup = (req, res, next) => {
   const regex = [
@@ -58,9 +58,10 @@ exports.signup = (req, res, next) => {
 exports.login = (req, res, next) => {
   try {
     connection
-      .query(`SELECT email, user_id, password from User where email = ?`, [
-        req.body.email,
-      ])
+      .query(
+        `SELECT email, firstname, lastname, imageURL, user_id, password, imageURL from User where email = ?`,
+        [req.body.email]
+      )
       .then((results) => {
         if (results.length == 0 || req.body.email == undefined) {
           // Vérification que l'utilisateur existe dans la base de donnée
@@ -70,6 +71,13 @@ exports.login = (req, res, next) => {
           res.status(401).end("Utilisateur ou mot de passe incorrect !");
         } else {
           // Si les deux premières conditions sont bonnes -> Vérification du mot de passe avec la base de donnée
+
+          const userEmail = results[0].email;
+          const userFirstname = results[0].firstname;
+          const userLastname = results[0].lastname;
+          const userImageURL = results[0].imageURL;
+          const userId = results[0].user_id;
+
           bcrypt
             .compare(req.body.password, results[0].password)
             .then((valid) => {
@@ -89,6 +97,13 @@ exports.login = (req, res, next) => {
                   "M0N_T0K3N_3ST_1NTR0UV4BL3",
                   { expiresIn: "24h" }
                 ),
+                userData: JSON.stringify({
+                  userEmail,
+                  userFirstname,
+                  userLastname,
+                  userImageURL,
+                  userId,
+                }),
               });
             });
         }
@@ -101,68 +116,90 @@ exports.login = (req, res, next) => {
 exports.update = (req, res, next) => {
   if (req.params.id === null) {
     // Si aucun userId n'est donné lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
+    return res.status(401).json("Utilisateur non identifié");
   } else {
+    const token = req.headers.authorization.split(" ")[1];
+    const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
+    const userId = `${decodedToken.userId}`;
+
     connection
-      .query(`SELECT user_id from User where user_id=?`, [req.params.id])
+      .query(`SELECT user_id from User where user_id=?`, [userId])
       .then((results) => {
-        //Vérification que l'utilisateur qui veut modifier le profil soit l'utilisateur lui-même
-        if (results[0] === undefined || req.params.id != results[0].user_id) {
+        // Vérification que l'utilisateur qui veut modifier le profil soit l'utilisateur lui-même
+        if (results[0] === undefined || userId != results[0].user_id) {
           return res
             .status(401)
-            .end("Vous ne pouvez pas modifier cet utilisateur");
+            .json("Vous ne pouvez pas modifier cet utilisateur");
         } else {
           const { firstname, lastname, email, password } = req.body;
-          if (password) {
-            // S'il change que le mot de passe
-            bcrypt
-              .hash(req.body.password, 10)
-              .then((hash) => {
-                connection.query(
-                  `UPDATE User SET password = ? where user_id = ?`,
-                  [hash, req.params.id]
-                );
-              })
-              .then(() => {
-                return res
-                  .status(201)
-                  .json({ message: "mot de passe modifié !" });
-              })
-              .catch((error) => res.status(400).json({ error }));
-          } else if (req.file) {
+          // if (password) {
+          //   // S'il change que le mot de passe
+          //   bcrypt
+          //     .hash(req.body.password, 10)
+          //     .then((hash) => {
+          //       connection.query(
+          //         `UPDATE User SET password = ? where user_id = ?`,
+          //         [hash, userId]
+          //       );
+          //     })
+          //     .then(() => {
+          //       return res
+          //         .status(201)
+          //         .json({ message: "mot de passe modifié !" });
+          //     })
+          //     .catch(() => {
+          //       return res
+          //         .status(400)
+          //         .json({ message: `le mot de passe n'a pas pu être modifié` });
+          //     });
+          // }
+          if (req.file) {
             // S'il modifie l'image
             connection
-              .query(`SELECT imageURL from User where user_id = ?`, [req.params.id])
+              .query(`SELECT imageURL from User where user_id = ?`, [userId])
               .then((results) => {
-                const filepath = results[0];
+                const file = results[0].imageURL;
+                const filename = file.split("/images/")[1];
+                
+                const filepath = `./images/${filename}`;
                 fs.unlinkSync(filepath);
               })
-              .catch((error) => res.status(500).json);
+              .catch(() => {
+                return res.end("image non supprimée");
+              });
+
+              const newFile = `${req.protocol}://${req.get(
+                "host"
+              )}/images/${req.file.filename}`;
 
             connection
               .query(
-                `UPDATE User SET imageURL = '${req.protocol}://${req.get(
-                  "host"
-                )}/images/${req.file.filename}' where user_id=?`,
-                [req.params.id]
+                `UPDATE User SET imageURL = '${newFile}' where user_id = ?`,
+                [userId]
               )
-              .then(() => res.status(200).send({ message: "image modifiée !" }))
-              .catch((error) =>
-                res.status(400).send({ error: "image non modifiée" })
-              );
-          } else {
-            // S'il modifie son prénom, nom ou adresse mail
-            connection
-              .query(
-                `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
-                [firstname, lastname, email, req.params.id]
-              )
-              .then(res.status(201).send({ message: "Utilisateur modifié !" }))
-              .catch({ error: "utilisateur non modifié" });
+              .then(() => {
+                res.status(201).json({userImageURL: newFile});
+              })
+              .catch(() => {
+                return res.write("image non modifiée !");
+              });
           }
+          // else {
+          //   // S'il modifie son prénom, nom ou adresse mail
+          //   connection
+          //     .query(
+          //       `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
+          //       [firstname, lastname, email, userId]
+          //     )
+          //     .then(
+          //       res.status(201).send({ message: "Utilisateur modifié !" }))
+          //     .catch({ error: "utilisateur non modifié" });
+          // }
         }
       })
-      .catch(console.log("erreur serveur"));
+      .catch(() => {
+        return res.send("erreur serveur");
+      });
   }
 };
 
@@ -178,12 +215,9 @@ exports.getOneUser = (req, res, next) => {
 };
 
 exports.getid = (req, res, next) => {
-
-
   const token = req.headers.authorization.split(" ")[1];
   const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
   const userId = `${decodedToken.userId}`;
 
- return res.status(201).json(userId);
-
+  return res.status(201).json(userId);
 };
