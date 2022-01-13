@@ -99,7 +99,9 @@ exports.delete = (req, res, next) => {
     return res.status(401).end("Utilisateur non identifié");
   } else {
     connection
-      .query(`SELECT user_id from post where post_id=?`, [req.params.id])
+      .query(`SELECT user_id from post where post_id = ?`, [
+        parseInt(req.params.id),
+      ])
       .then((results) => {
         console.log(results[0].user_id);
         if (userId != results[0].user_id) {
@@ -119,22 +121,45 @@ exports.delete = (req, res, next) => {
                     req.params.id,
                   ])
                   .then(() => {
-                    console.log('les informations liées au post ont été supprimées')
+                    console.log(
+                      "les informations liées au post ont été supprimées"
+                    );
                   })
                   .catch(() => {
-                    console.log("les informations liées au post n'ont pas été supprimées")
+                    console.log(
+                      "les informations liées au post n'ont pas été supprimées"
+                    );
                   });
               }
-              //
+
+              connection
+                .query(`SELECT postImageURL from Post WHERE post_id = ?`, [
+                  parseInt(req.params.id),
+                ])
+                .then((results) => {
+                  if (results[0]) {
+                    const file = results[0].postImageURL;
+                    const filename = file.split("/images/")[1];
+
+                    const filepath = `./images/${filename}`;
+                    fs.unlinkSync(filepath);
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                  }
+                })
+                .catch(() => {
+                  console.log("image non supprimée");
+                });
+
               connection
                 .query(`DELETE from Post where post_id=?`, [req.params.id])
-                .then(() =>
-                  res.status(202).json({ message: "Le post à été supprimé" })
+                .then(() =>{
+                  return res.end()}
                 )
                 .catch(() => {
                   return res
                     .status(402)
-                    .json({ error: "erreur lors de la suppression" });
+                    .write({ error: "erreur lors de la suppression" });
                 });
             });
         }

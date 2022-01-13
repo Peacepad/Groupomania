@@ -184,17 +184,18 @@ exports.update = (req, res, next) => {
                 return res.write("image non modifiée !");
               });
           }
-          // else {
-          //   // S'il modifie son prénom, nom ou adresse mail
-          //   connection
-          //     .query(
-          //       `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
-          //       [firstname, lastname, email, userId]
-          //     )
-          //     .then(
-          //       res.status(201).send({ message: "Utilisateur modifié !" }))
-          //     .catch({ error: "utilisateur non modifié" });
-          // }
+          else {
+            // S'il modifie son prénom, nom ou adresse mail
+            connection
+              .query(
+                `UPDATE User SET firstname = ?, lastname = ?, email= ? WHERE user_id = ?`,
+                [firstname, lastname, email, userId]
+              )
+              .then(
+                res.status(201).json({userFirstname: firstname, userLastname: lastname, userEmail: email})
+                )
+              .catch({ error: "utilisateur non modifié" });
+          }
         }
       })
       .catch(() => {
