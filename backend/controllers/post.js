@@ -21,7 +21,7 @@ exports.create = (req, res, next) => {
     }`;
     connection
       .query(
-        `INSERT INTO Post(user_id, body, date, postImageURL) values (?, ?, ?, ?)`,
+        `INSERT INTO Post(post_user_id, post_body, post_date, post_imageURL) values (?, ?, ?, ?)`,
         [userId, req.body.text, date, postImageUrl]
       )
       .then(() => {
@@ -32,11 +32,10 @@ exports.create = (req, res, next) => {
       });
   } else {
     connection
-      .query(`INSERT INTO Post(user_id, body, date) values (?, ?, ?)`, [
-        userId,
-        req.body.text,
-        date,
-      ])
+      .query(
+        `INSERT INTO Post(post_user_id, post_body, post_date) values (?, ?, ?)`,
+        [userId, req.body.text, date]
+      )
       .then(() => {
         return res.status(201).json({ message: "Post créé !" });
       })
@@ -99,25 +98,25 @@ exports.delete = (req, res, next) => {
     return res.status(401).end("Utilisateur non identifié");
   } else {
     connection
-      .query(`SELECT user_id from post where post_id = ?`, [
+      .query(`SELECT post_user_id from post where post_id = ?`, [
         parseInt(req.params.id),
       ])
       .then((results) => {
         console.log(results[0].user_id);
-        if (userId != results[0].user_id) {
+        if (userId != results[0].post_user_id) {
           return res
             .status(403)
             .json({ error: "vous ne pouvez pas supprimer ce post" });
         } else {
           // il faut vérifier qu'il n'y ai pas la table like_post de concerner
           connection
-            .query(`SELECT post_id from like_post where post_id=?`, [
+            .query(`SELECT like_post_id from like_post where like_post_id=?`, [
               req.params.id,
             ])
             .then((results) => {
               if (results[0]) {
                 connection
-                  .query(`DELETE from like_post where post_id=?`, [
+                  .query(`DELETE from like_post where like_post_id=?`, [
                     req.params.id,
                   ])
                   .then(() => {
@@ -133,18 +132,18 @@ exports.delete = (req, res, next) => {
               }
 
               connection
-                .query(`SELECT postImageURL from Post WHERE post_id = ?`, [
+                .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
                   parseInt(req.params.id),
                 ])
                 .then((results) => {
                   if (results[0]) {
-                    const file = results[0].postImageURL;
+                    const file = results[0].post_imageURL;
                     const filename = file.split("/images/")[1];
 
                     const filepath = `./images/${filename}`;
                     fs.unlinkSync(filepath);
 
-                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.writeHead(200, { "Content-Type": "application/json" });
                   }
                 })
                 .catch(() => {
@@ -153,9 +152,9 @@ exports.delete = (req, res, next) => {
 
               connection
                 .query(`DELETE from Post where post_id=?`, [req.params.id])
-                .then(() =>{
-                  return res.end()}
-                )
+                .then(() => {
+                  return res.end();
+                })
                 .catch(() => {
                   return res
                     .status(402)
@@ -175,9 +174,61 @@ exports.delete = (req, res, next) => {
 exports.getPost = (req, res, next) => {
   connection
     .query(
-      "Select * from post JOIN (select firstname, lastname, user_id, imageURL from user) as user ON user.user_id = post.user_id"
+      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_user_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id;"
     )
-    .then((post) => res.status(200).json(post))
+    .then((postList) => {
+      const listOfAllPosts = [];
+      postList.forEach((postData) => {
+        const post = {
+          post_id: postData.post_id,
+          post_user_id: postData.post_user_id,
+          post_body: postData.post_body,
+          firstname: postData.post_firstname,
+          lastname: postData.post_lastname,
+          user_imageURL: postData.user_imageURL,
+          post_imageURL: postData.post_imageURL,
+          listComment: [],
+        };
+
+        if (
+          !listOfAllPosts.find(
+            (postElement) => post.post_id == postElement.post_id
+          )
+        ) {
+          listOfAllPosts.push(post);
+        }
+      });
+
+      postList.forEach((commentData) => {
+        if (commentData.comment_body != null) {
+          const comment = {
+            comment_post_id: commentData.comment_post_id,
+            comment_id: commentData.comment_id,
+            comment_firstname: commentData.comment_firstname,
+            comment_lastname: commentData.comment_lastname,
+            comment_body: commentData.comment_body,
+            comment_user_imageURL: commentData.comment_user_imageURL,
+          };
+
+          const post = listOfAllPosts.find(
+            (postElement) => commentData.comment_post_id == postElement.post_id
+          );
+
+          if (
+            !post.listComment.find(
+              (commentElement) =>
+                comment.comment_post_id == commentElement.post_id
+            )
+          ) {
+            if (commentData.comment_id != null) {
+              post.listComment.push(comment);
+            }
+          }
+        }
+      });
+      console.log(listOfAllPosts);
+      res.status(200).json(listOfAllPosts);
+    })
     .catch((error) => res.status(500).send("server issue"));
 };
 

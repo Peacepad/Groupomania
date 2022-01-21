@@ -59,7 +59,7 @@ exports.login = (req, res, next) => {
   try {
     connection
       .query(
-        `SELECT email, firstname, lastname, imageURL, user_id, password, imageURL from User where email = ?`,
+        `SELECT email, firstname, lastname, user_imageURL, user_id, password from User where email = ?`,
         [req.body.email]
       )
       .then((results) => {
@@ -75,7 +75,7 @@ exports.login = (req, res, next) => {
           const userEmail = results[0].email;
           const userFirstname = results[0].firstname;
           const userLastname = results[0].lastname;
-          const userImageURL = results[0].imageURL;
+          const userImageURL = results[0].user_imageURL;
           const userId = results[0].user_id;
 
           bcrypt
@@ -156,9 +156,9 @@ exports.update = (req, res, next) => {
           if (req.file) {
             // S'il modifie l'image
             connection
-              .query(`SELECT imageURL from User where user_id = ?`, [userId])
+              .query(`SELECT user_imageURL from User where user_id = ?`, [userId])
               .then((results) => {
-                const file = results[0].imageURL;
+                const file = results[0].user_imageURL;
                 const filename = file.split("/images/")[1];
                 
                 const filepath = `./images/${filename}`;
@@ -174,7 +174,7 @@ exports.update = (req, res, next) => {
 
             connection
               .query(
-                `UPDATE User SET imageURL = '${newFile}' where user_id = ?`,
+                `UPDATE User SET user_imageURL = '${newFile}' where user_id = ?`,
                 [userId]
               )
               .then(() => {

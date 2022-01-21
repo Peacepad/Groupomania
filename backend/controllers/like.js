@@ -8,9 +8,9 @@ exports.create = (req, res, next) => {
 
   // Vérifier que l'utilisateur n'a pas déjà liké pour ce post
   connection
-    .query("SELECT user_id from Like_Post where post_id = ?", [req.params.id])
+    .query("SELECT like_user_id from Like_Post where like_post_id = ?", [req.params.id])
     .then((results) => {
-      const users = results.map((el) => el.user_id);
+      const users = results.map((el) => el.like_user_id);
 
       if (!users.includes(parseInt(userId))) {
         // On ajoute un like
@@ -29,7 +29,7 @@ exports.create = (req, res, next) => {
                   });
                 } else {
                   connection.query(
-                    "INSERT INTO Like_Post(user_id, post_id) values (?, ?)",
+                    "INSERT INTO Like_Post(like_user_id, like_post_id) values (?, ?)",
                     [parseInt(userId), req.params.id],
                     function (error, results) {
                       if (error) {
@@ -71,7 +71,7 @@ exports.create = (req, res, next) => {
                   });
                 } else {
                   connection.query(
-                    "DELETE from Like_Post where (user_id = ?) AND (post_id = ?);",
+                    "DELETE from Like_Post where (like_user_id = ?) AND (like_post_id = ?);",
                     [parseInt(userId), req.params.id],
                     function (error, results) {
                       if (error) {
