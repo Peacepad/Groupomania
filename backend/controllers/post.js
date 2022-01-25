@@ -76,10 +76,10 @@ exports.update = (req, res, next) => {
           );
       }
       let bodyRequest = req.body.text; // Attention au text
-      let bodySave = bodyRequest.replace(`'`, `''`);
+
       connection
         .query(`UPDATE POST set body = ? where post_id = ?`, [
-          bodySave,
+          bodyRequest,
           req.body.post_id,
         ])
         .then(() => res.status(201).json({ message: "Post modifié !" }))
@@ -97,84 +97,61 @@ exports.delete = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
+    
+
+      //Suppression des images du post
     connection
-      .query(`SELECT post_user_id from post where post_id = ?`, [
+      .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
         parseInt(req.params.id),
       ])
       .then((results) => {
-        console.log(results[0].user_id);
-        if (userId != results[0].post_user_id) {
-          return res
-            .status(403)
-            .json({ error: "vous ne pouvez pas supprimer ce post" });
+        if (results[0].post_imageURL !== null) {
+          const file = results[0].post_imageURL;
+          const filename = file.split("/images/")[1];
+
+          const filepath = `./images/${filename}`;
+          fs.unlinkSync(filepath);
+
+          
         } else {
-          // il faut vérifier qu'il n'y ai pas la table like_post de concerner
-          connection
-            .query(`SELECT like_post_id from like_post where like_post_id=?`, [
-              req.params.id,
-            ])
-            .then((results) => {
-              if (results[0]) {
-                connection
-                  .query(`DELETE from like_post where like_post_id=?`, [
-                    req.params.id,
-                  ])
-                  .then(() => {
-                    console.log(
-                      "les informations liées au post ont été supprimées"
-                    );
-                  })
-                  .catch(() => {
-                    console.log(
-                      "les informations liées au post n'ont pas été supprimées"
-                    );
-                  });
-              }
-
-              connection
-                .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
-                  parseInt(req.params.id),
-                ])
-                .then((results) => {
-                  if (results[0]) {
-                    const file = results[0].post_imageURL;
-                    const filename = file.split("/images/")[1];
-
-                    const filepath = `./images/${filename}`;
-                    fs.unlinkSync(filepath);
-
-                    res.writeHead(200, { "Content-Type": "application/json" });
-                  }
-                })
-                .catch(() => {
-                  console.log("image non supprimée");
-                });
-
-              connection
-                .query(`DELETE from Post where post_id=?`, [req.params.id])
-                .then(() => {
-                  return res.end();
-                })
-                .catch(() => {
-                  return res
-                    .status(402)
-                    .write({ error: "erreur lors de la suppression" });
-                });
-            });
+          () => {
+            return console.log("il n'y a pas d'image");
+          };
         }
       })
       .catch(() => {
-        return res
-          .status(403)
-          .json({ error: "Non vous ne pouvez pas supprimer ce post" });
+        return console.log("image non supprimée");
       });
   }
+
+  //Suppression des likes
+  connection
+  .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
+  .then(() => {
+    return console.log("j'aime supprimés");
+  })
+  .catch(() => {
+    return console.log("Il n'y a pas de j'aime");
+  });
+
+  //Suppression des commentaires
+  connection.query("DELETE FROM Comment where comment_post_id=?", [req.params.id])
+  .then(() => {return console.log("commentaires supprimés")})
+  .catch(() => {return console.log("il n'y a pas de commentaires sur ce Post")})
+
+  //Suppression du Post
+  connection.query("DELETE FROM POST WHERE post_id=?", [req.params.id])
+  .then(() => {return res.status(201).json("post supprimé")})
+  .catch(() => {return res.status(401).json("post non supprimé")})
+
 };
+
+
 
 exports.getPost = (req, res, next) => {
   connection
     .query(
-      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_user_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id;"
+      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL, comment_user.user_id AS comment_user_id FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id;"
     )
     .then((postList) => {
       const listOfAllPosts = [];
@@ -187,6 +164,7 @@ exports.getPost = (req, res, next) => {
           lastname: postData.post_lastname,
           user_imageURL: postData.user_imageURL,
           post_imageURL: postData.post_imageURL,
+          post_date: postData.post_date,
           listComment: [],
         };
 
@@ -199,7 +177,7 @@ exports.getPost = (req, res, next) => {
         }
       });
 
-      postList.forEach((commentData) => {
+      postList.reverse().forEach((commentData) => {
         if (commentData.comment_body != null) {
           const comment = {
             comment_post_id: commentData.comment_post_id,
@@ -208,11 +186,15 @@ exports.getPost = (req, res, next) => {
             comment_lastname: commentData.comment_lastname,
             comment_body: commentData.comment_body,
             comment_user_imageURL: commentData.comment_user_imageURL,
+            comment_user_id: commentData.comment_user_id,
           };
 
-          const post = listOfAllPosts.find(
-            (postElement) => commentData.comment_post_id == postElement.post_id
-          );
+          const post = listOfAllPosts
+            
+            .find(
+              (postElement) =>
+                commentData.comment_post_id == postElement.post_id
+            );
 
           if (
             !post.listComment.find(
@@ -226,7 +208,7 @@ exports.getPost = (req, res, next) => {
           }
         }
       });
-      console.log(listOfAllPosts);
+
       res.status(200).json(listOfAllPosts);
     })
     .catch((error) => res.status(500).send("server issue"));
