@@ -7,6 +7,7 @@ const connection = require("../service/database");
 
 exports.create = (req, res, next) => {
   let date = new Date().toISOString().slice(0, 19).replace("T", " ");
+  console.log(date);
 
   //
   const token = req.headers.authorization.split(" ")[1];
@@ -50,10 +51,9 @@ exports.update = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-    if (req.body.userId != results[0].user_id) {
-      // Si l'id n'est pas le même que celui qui a créer le post
-      res.status(403).json({ error: "vous ne pouvez pas modifier ce post" });
-    } else {
+
+ 
+
       if (req.file) {
         // S'il y a une requête pour changer l'image
         connection
@@ -78,14 +78,14 @@ exports.update = (req, res, next) => {
       let bodyRequest = req.body.text; // Attention au text
 
       connection
-        .query(`UPDATE POST set body = ? where post_id = ?`, [
+        .query(`UPDATE POST set post_body = ? where post_id = ?`, [
           bodyRequest,
-          req.body.post_id,
+          parseInt(req.params.id),
         ])
         .then(() => res.status(201).json({ message: "Post modifié !" }))
         .catch((error) => res.status(400).json({ error }));
     }
-  }
+  
 };
 
 exports.delete = (req, res, next) => {
@@ -167,6 +167,8 @@ exports.getPost = (req, res, next) => {
           post_date: postData.post_date,
           listComment: [],
         };
+
+        
 
         if (
           !listOfAllPosts.find(
