@@ -6,7 +6,8 @@ const jwt = require("jsonwebtoken");
 const connection = require("../service/database");
 
 exports.create = (req, res, next) => {
-  let date = new Date().toISOString().slice(0, 19).replace("T", " ");
+  let date = new Date().toISOString().slice(0, 10)+" "+new Date().toLocaleTimeString('fr-fr');
+  
   console.log(date);
 
   //
@@ -52,29 +53,63 @@ exports.update = (req, res, next) => {
     return res.status(401).end("Utilisateur non identifié");
   } else {
 
- 
+    if (Boolean(req.body.fileDeleted)) {
+      connection
+      .query(`SELECT post_imageURL from Post where post_id = ?`, [parseInt(req.params.id)])
+      .then((results) => {
+        const file = results[0].post_imageURL;
+        const filename = file.split("/images/")[1];
+        
+        const filepath = `./images/${filename}`;
+        fs.unlinkSync(filepath);
+      })
+      .catch(() => {
+        return res.end("image non supprimée");
+      });
+
+      connection.query('UPDATE Post Set post_imageURL = NULL where post_id = ?', [parseInt(req.params.id)])
+      .then(() => {
+        return res.send()
+      })
+      .catch(() => {
+        return res.send()
+      })
+    }
 
       if (req.file) {
         // S'il y a une requête pour changer l'image
         connection
-          .query(`SELECT postImageURL from Post where post_id = ?`, [post_id])
-          .then((results) => {
-            const filepath = results[0];
-            fs.unlinkSync(filepath);
-          })
-          .catch((error) => res.status(500).json);
-        connection
-          .query(
-            `UPDATE Post SET postImageURL = '${req.protocol}://${req.get(
-              "host"
-            )}/images/${req.file.filename}' where post_id=?`,
-            [post_id]
-          )
-          .then(() => res.status(200).json({ message: "image modifiée !" }))
-          .catch((error) =>
-            res.status(400).json({ error: "image non modifiée" })
-          );
+        .query(`SELECT post_imageURL from post where post_id = ?`, [parseInt(req.params.id)])
+        .then((results) => {
+          const file = results[0].post_imageURL;
+          const filename = file.split("/images/")[1];
+          
+          const filepath = `./images/${filename}`;
+          fs.unlinkSync(filepath);
+        })
+        .catch(() => {
+          return res.end("image non supprimée");
+        });
+
+        const newFile = `${req.protocol}://${req.get(
+          "host"
+        )}/images/${req.file.filename}`;
+
+      connection
+        .query(
+          `UPDATE Post SET post_imageURL = '${newFile}' where post_id = ?`,
+          [parseInt(req.params.id)]
+        )
+        .then(() => {
+          return res.send()
+        })
+        .catch(() => {
+          return console.log('image non modifée')
+        });
       }
+
+      
+
       let bodyRequest = req.body.text; // Attention au text
 
       connection
@@ -82,8 +117,8 @@ exports.update = (req, res, next) => {
           bodyRequest,
           parseInt(req.params.id),
         ])
-        .then(() => res.status(201).json({ message: "Post modifié !" }))
-        .catch((error) => res.status(400).json({ error }));
+        .then(() => {return res.send()})
+        .catch({ error: "post non modifié" });
     }
   
 };

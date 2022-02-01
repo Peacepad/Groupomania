@@ -6,7 +6,8 @@ const connection = mysql.createConnection({
   user: "root",
   password: "Peacedu07",
   database: "groupomania",
-  charset: "utf8mb4"
+  charset: "utf8mb4",
+  timezone: 'utc'
 });
 
 connection.query = promisify(connection.query);
