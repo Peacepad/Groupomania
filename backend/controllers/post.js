@@ -6,8 +6,11 @@ const jwt = require("jsonwebtoken");
 const connection = require("../service/database");
 
 exports.create = (req, res, next) => {
-  let date = new Date().toISOString().slice(0, 10)+" "+new Date().toLocaleTimeString('fr-fr');
-  
+  let date =
+    new Date().toISOString().slice(0, 10) +
+    " " +
+    new Date().toLocaleTimeString("fr-fr");
+
   console.log(date);
 
   //
@@ -32,6 +35,7 @@ exports.create = (req, res, next) => {
       .catch(() => {
         return res.status(401).send("le post n'a pas pu être créé");
       });
+      
   } else {
     connection
       .query(
@@ -52,38 +56,15 @@ exports.update = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-
-    if (Boolean(req.body.fileDeleted)) {
+    if (Boolean(req.body.fileDeleted) == "true") {
       connection
-      .query(`SELECT post_imageURL from Post where post_id = ?`, [parseInt(req.params.id)])
-      .then((results) => {
-        const file = results[0].post_imageURL;
-        const filename = file.split("/images/")[1];
-        
-        const filepath = `./images/${filename}`;
-        fs.unlinkSync(filepath);
-      })
-      .catch(() => {
-        return res.end("image non supprimée");
-      });
-
-      connection.query('UPDATE Post Set post_imageURL = NULL where post_id = ?', [parseInt(req.params.id)])
-      .then(() => {
-        return res.send()
-      })
-      .catch(() => {
-        return res.send()
-      })
-    }
-
-      if (req.file) {
-        // S'il y a une requête pour changer l'image
-        connection
-        .query(`SELECT post_imageURL from post where post_id = ?`, [parseInt(req.params.id)])
+        .query(`SELECT post_imageURL from Post where post_id = ?`, [
+          parseInt(req.params.id),
+        ])
         .then((results) => {
           const file = results[0].post_imageURL;
           const filename = file.split("/images/")[1];
-          
+
           const filepath = `./images/${filename}`;
           fs.unlinkSync(filepath);
         })
@@ -91,9 +72,38 @@ exports.update = (req, res, next) => {
           return res.end("image non supprimée");
         });
 
-        const newFile = `${req.protocol}://${req.get(
-          "host"
-        )}/images/${req.file.filename}`;
+      connection
+        .query("UPDATE Post Set post_imageURL = NULL where post_id = ?", [
+          parseInt(req.params.id),
+        ])
+        .then(() => {
+          return res.send();
+        })
+        .catch(() => {
+          return res.send();
+        });
+    }
+
+    if (req.file) {
+      // S'il y a une requête pour changer l'image
+      connection
+        .query(`SELECT post_imageURL from post where post_id = ?`, [
+          parseInt(req.params.id),
+        ])
+        .then((results) => {
+          const file = results[0].post_imageURL;
+          const filename = file.split("/images/")[1];
+
+          const filepath = `./images/${filename}`;
+          fs.unlinkSync(filepath);
+        })
+        .catch(() => {
+          return res.end("image non supprimée");
+        });
+
+      const newFile = `${req.protocol}://${req.get("host")}/images/${
+        req.file.filename
+      }`;
 
       connection
         .query(
@@ -101,26 +111,25 @@ exports.update = (req, res, next) => {
           [parseInt(req.params.id)]
         )
         .then(() => {
-          return res.send()
+          return res.send();
         })
         .catch(() => {
-          return console.log('image non modifée')
+          return console.log("image non modifée");
         });
-      }
-
-      
-
-      let bodyRequest = req.body.text; // Attention au text
-
-      connection
-        .query(`UPDATE POST set post_body = ? where post_id = ?`, [
-          bodyRequest,
-          parseInt(req.params.id),
-        ])
-        .then(() => {return res.send()})
-        .catch({ error: "post non modifié" });
     }
-  
+
+    let bodyRequest = req.body.text; // Attention au text
+
+    connection
+      .query(`UPDATE POST set post_body = ? where post_id = ?`, [
+        bodyRequest,
+        parseInt(req.params.id),
+      ])
+      .then(() => {
+        return res.send();
+      })
+      .catch({ error: "post non modifié" });
+  }
 };
 
 exports.delete = (req, res, next) => {
@@ -132,9 +141,7 @@ exports.delete = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-    
-
-      //Suppression des images du post
+    //Suppression des images du post
     connection
       .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
         parseInt(req.params.id),
@@ -146,8 +153,6 @@ exports.delete = (req, res, next) => {
 
           const filepath = `./images/${filename}`;
           fs.unlinkSync(filepath);
-
-          
         } else {
           () => {
             return console.log("il n'y a pas d'image");
@@ -161,27 +166,34 @@ exports.delete = (req, res, next) => {
 
   //Suppression des likes
   connection
-  .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
-  .then(() => {
-    return console.log("j'aime supprimés");
-  })
-  .catch(() => {
-    return console.log("Il n'y a pas de j'aime");
-  });
+    .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
+    .then(() => {
+      return console.log("j'aime supprimés");
+    })
+    .catch(() => {
+      return console.log("Il n'y a pas de j'aime");
+    });
 
   //Suppression des commentaires
-  connection.query("DELETE FROM Comment where comment_post_id=?", [req.params.id])
-  .then(() => {return console.log("commentaires supprimés")})
-  .catch(() => {return console.log("il n'y a pas de commentaires sur ce Post")})
+  connection
+    .query("DELETE FROM Comment where comment_post_id=?", [req.params.id])
+    .then(() => {
+      return console.log("commentaires supprimés");
+    })
+    .catch(() => {
+      return console.log("il n'y a pas de commentaires sur ce Post");
+    });
 
   //Suppression du Post
-  connection.query("DELETE FROM POST WHERE post_id=?", [req.params.id])
-  .then(() => {return res.status(201).json("post supprimé")})
-  .catch(() => {return res.status(401).json("post non supprimé")})
-
+  connection
+    .query("DELETE FROM POST WHERE post_id=?", [req.params.id])
+    .then(() => {
+      return res.status(201).json("post supprimé");
+    })
+    .catch(() => {
+      return res.status(401).json("post non supprimé");
+    });
 };
-
-
 
 exports.getPost = (req, res, next) => {
   connection
@@ -203,8 +215,6 @@ exports.getPost = (req, res, next) => {
           listComment: [],
         };
 
-        
-
         if (
           !listOfAllPosts.find(
             (postElement) => post.post_id == postElement.post_id
@@ -214,7 +224,7 @@ exports.getPost = (req, res, next) => {
         }
       });
 
-      postList.reverse().forEach((commentData) => {
+      postList.forEach((commentData) => {
         if (commentData.comment_body != null) {
           const comment = {
             comment_post_id: commentData.comment_post_id,
@@ -222,16 +232,14 @@ exports.getPost = (req, res, next) => {
             comment_firstname: commentData.comment_firstname,
             comment_lastname: commentData.comment_lastname,
             comment_body: commentData.comment_body,
+            comment_imageURL: commentData.comment_imageURL,
             comment_user_imageURL: commentData.comment_user_imageURL,
             comment_user_id: commentData.comment_user_id,
           };
 
-          const post = listOfAllPosts
-            
-            .find(
-              (postElement) =>
-                commentData.comment_post_id == postElement.post_id
-            );
+          const post = listOfAllPosts.find(
+            (postElement) => commentData.comment_post_id == postElement.post_id
+          );
 
           if (
             !post.listComment.find(

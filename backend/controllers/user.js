@@ -158,32 +158,58 @@ exports.update = (req, res, next) => {
             connection
               .query(`SELECT user_imageURL from User where user_id = ?`, [userId])
               .then((results) => {
-                const file = results[0].user_imageURL;
+                if(results[0].user_imageURL != null)
+
+
+                {const file = results[0].user_imageURL;
                 const filename = file.split("/images/")[1];
                 
                 const filepath = `./images/${filename}`;
                 fs.unlinkSync(filepath);
-              })
-              .catch(() => {
-                return res.end("image non supprimée");
-              });
 
-              const newFile = `${req.protocol}://${req.get(
+                const newFile = `${req.protocol}://${req.get(
                 "host"
               )}/images/${req.file.filename}`;
 
             connection
               .query(
                 `UPDATE User SET user_imageURL = '${newFile}' where user_id = ?`,
-                [userId]
+                [parseInt(userId)]
               )
               .then(() => {
-                res.status(201).json({userImageURL: newFile});
+                return res.status(201).json({userImageURL: newFile});
               })
               .catch(() => {
                 return res.write("image non modifiée !");
               });
+
+}
+else {
+  const newFile = `${req.protocol}://${req.get(
+                "host"
+              )}/images/${req.file.filename}`;
+  connection
+              .query(
+                `UPDATE User SET user_imageURL = '${newFile}' where user_id = ?`,
+                [parseInt(userId)]
+              )
+              .then(() => {
+                return res.status(201).json({userImageURL: newFile});
+              })
+              .catch(() => {
+                return res.write("image non modifiée !");
+              });
+}
+
+              })
+              .catch(() => {
+                return res.end("image non supprimée");
+              });
+
+              
           }
+
+
           else {
             // S'il modifie son prénom, nom ou adresse mail
             connection

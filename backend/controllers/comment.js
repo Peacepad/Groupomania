@@ -16,6 +16,22 @@ exports.create = (req, res, next) => {
     let date = new Date().toISOString().slice(0, 19).replace("T", " ");
     let bodyRequest = req.body.text;
 
+    if (req.file) {
+      const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
+        req.file.filename
+      }`;
+      connection
+        .query(
+          `INSERT INTO Comment(comment_user_id, comment_body, comment_date, comment_imageURL, comment_post_id) values (?, ?, ?, ?, ?)`,
+          [userId, req.body.text, date, commentImageUrl, req.body.postId]
+        )
+        .then(() => {
+          return res.status(201).json("commentaire créé !");
+        })
+        .catch(() => {
+          return res.status(401).send("le commentaire n'a pas pu être créé");
+        });
+      } else {
     connection
       .query(
         `INSERT INTO Comment(comment_user_id, comment_post_id, comment_body, comment_date) values (?, ?, ?, ?)`,
@@ -23,6 +39,7 @@ exports.create = (req, res, next) => {
       )
       .then(() => res.status(201).json({ message: "Commentaire créé !" }))
       .catch((error) => res.status(400).json({ error }));
+  }
   }
 };
 
@@ -59,6 +76,32 @@ exports.delete = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
+
+    // Suppression des images
+    connection
+      .query(`SELECT comment_imageURL from Comment WHERE comment_id = ?`, [
+        parseInt(req.params.commentId),
+      ])
+      .then((results) => {
+        if (results[0].comment_imageURL !== null) {
+          const file = results[0].comment_imageURL;
+          const filename = file.split("/images/")[1];
+
+          const filepath = `./images/${filename}`;
+          fs.unlinkSync(filepath);
+        } else {
+          () => {
+            return console.log("il n'y a pas d'image");
+          };
+        }
+      })
+      .catch(() => {
+        return console.log("image non supprimée");
+      });
+  
+
+
+
     connection
       .query(`DELETE from Comment where comment_id=?`, [
         parseInt(req.params.commentId),
