@@ -1,5 +1,5 @@
 const mysql = require("mysql");
-const { promisify } = require("util");
+
 const fs = require("fs");
 const jwt = require("jsonwebtoken");
 
@@ -11,7 +11,7 @@ exports.create = (req, res, next) => {
     " " +
     new Date().toLocaleTimeString("fr-fr");
 
-  console.log(date);
+  
 
   //
   const token = req.headers.authorization.split(" ")[1];
@@ -56,7 +56,7 @@ exports.update = (req, res, next) => {
     // S'il n'y a pas d'id lors de la requête
     return res.status(401).end("Utilisateur non identifié");
   } else {
-    if (Boolean(req.body.fileDeleted) == "true") {
+    if (Boolean(req.body.fileDeleted) == true) {
       connection
         .query(`SELECT post_imageURL from Post where post_id = ?`, [
           parseInt(req.params.id),
@@ -198,7 +198,7 @@ exports.delete = (req, res, next) => {
 exports.getPost = (req, res, next) => {
   connection
     .query(
-      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL, comment_user.user_id AS comment_user_id FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id;"
+      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL, comment_user.user_id AS comment_user_id, like_post.id AS like_id, like_post.like_post_id AS like_post_id  FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id LEFT JOIN like_post AS like_post ON post_id = like_post.like_post_id;"
     )
     .then((postList) => {
       const listOfAllPosts = [];
@@ -213,6 +213,7 @@ exports.getPost = (req, res, next) => {
           post_imageURL: postData.post_imageURL,
           post_date: postData.post_date,
           listComment: [],
+          listLike: []
         };
 
         if (
@@ -223,6 +224,30 @@ exports.getPost = (req, res, next) => {
           listOfAllPosts.push(post);
         }
       });
+
+      postList.forEach((likeData) => {
+        if (likeData.like_id != null) {
+        const like = {
+          like_id: likeData.like_id,
+          like_post_id: likeData.like_post_id
+        }
+        const post = listOfAllPosts.find(
+          (postElement) => likeData.like_post_id == postElement.post_id
+        )
+
+        if (
+          !post.listLike.find(
+            (likeElement) =>
+              like.like_post_id == likeElement.post_id
+          )
+        ) {
+          if (likeData.like_id != null) {
+            post.listLike.push(like);
+          }
+        }}
+
+
+      })
 
       postList.forEach((commentData) => {
         if (commentData.comment_body != null) {
@@ -235,6 +260,7 @@ exports.getPost = (req, res, next) => {
             comment_imageURL: commentData.comment_imageURL,
             comment_user_imageURL: commentData.comment_user_imageURL,
             comment_user_id: commentData.comment_user_id,
+            comment_date: commentData.comment_date
           };
 
           const post = listOfAllPosts.find(

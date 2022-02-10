@@ -15,94 +15,31 @@ exports.create = (req, res, next) => {
       if (!users.includes(parseInt(userId))) {
         // On ajoute un like
 
-        connection.beginTransaction(function (err) {
-          if (err) {
-            throw err;
-          } else {
-            connection.query(
-              "UPDATE POST SET likes = likes + 1 where post_id = ?",
-              [req.params.id],
-              function (error) {
-                if (error) {
-                  connection.rollback(function () {
-                    throw error;
-                  });
-                } else {
+        
                   connection.query(
                     "INSERT INTO Like_Post(like_user_id, like_post_id) values (?, ?)",
-                    [parseInt(userId), req.params.id],
-                    function (error, results) {
-                      if (error) {
-                        connection.rollback(function () {
-                          throw error;
-                        });
-                      } else {
-                        connection.commit(function (err) {
-                          if (err) {
-                            connection.rollback(function () {
-                              throw err;
-                            });
-                          } else {
-                            
-                              return res.status(201).json("like ajouté");
-                            
-                          }
-                        });
-                      }
-                    }
-                  );
-                }
-              }
-            );
-          }
-        });
+                    [parseInt(userId), req.params.id]                    
+                  )
+                  .then(() =>
+                    {return res.status(201).json("like incrémenté")}
+                  )
+                  .catch(
+                    () =>
+                    {return res.status(401).json("like non incrémenté")}
+                  )
+         
       } else if (users.includes(parseInt(userId))) {
-        connection.beginTransaction(function (err) {
-          if (err) {
-            throw err;
-          } else {
-            connection.query(
-              "UPDATE POST SET likes = likes - 1 where post_id = ?",
-              [req.params.id],
-              function (error) {
-                if (error) {
-                  connection.rollback(function () {
-                    throw error;
-                  });
-                } else {
+        
                   connection.query(
-                    "DELETE from Like_Post where (like_user_id = ?) AND (like_post_id = ?);",
-                    [parseInt(userId), req.params.id],
-                    function (error, results) {
-                      if (error) {
-                        connection.rollback(function () {
-                          throw error;
-                        });
-                      } else {
-                        connection.commit(function (err) {
-                          if (err) {
-                            connection.rollback(function () {
-                              throw err;
-                            });
-                          } else {
-                            
-                              return res.status(201).json("like ajouté");
-                            
-                          }
-                        });
-                      }
-                    }
-                  );
-                }
-              }
-            );
-          }
-        });
-      }
-    })
-    .catch(() => {
-      return res.status(403).json("une erreur s'est produite");
-    });
-};
-
+                    "DELETE from Like_Post where (like_user_id = ?) AND (like_post_id = ?);",[parseInt(userId),req.params.id])
+                    .then(
+                      () =>
+                    {return res.status(201).json("like décrémenté")}
+                    )
+                   .catch(() => {
+                    return res.status(401).json("like non décrémenté");
+                  });
+        };
+    
+    })}
 

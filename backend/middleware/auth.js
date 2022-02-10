@@ -10,13 +10,13 @@ module.exports = (req, res, next) => {
       res.status(403).json({error: "403: unauthorized request."});
     } 
     else {
-      // ajouter dans le body le userId
+      
       next();
     }
   } 
   catch {
-    res.status(401).json({
-      error: 'Invalid request!'})
+    res.status(401).json(
+      'Invalid request!')
     ;
   }
 };
