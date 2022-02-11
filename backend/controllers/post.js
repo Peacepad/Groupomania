@@ -11,8 +11,6 @@ exports.create = (req, res, next) => {
     " " +
     new Date().toLocaleTimeString("fr-fr");
 
-  
-
   //
   const token = req.headers.authorization.split(" ")[1];
   const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
@@ -35,7 +33,6 @@ exports.create = (req, res, next) => {
       .catch(() => {
         return res.status(401).send("le post n'a pas pu être créé");
       });
-      
   } else {
     connection
       .query(
@@ -52,147 +49,159 @@ exports.create = (req, res, next) => {
 };
 
 exports.update = (req, res, next) => {
-  if (req.body.userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-    if (Boolean(req.body.fileDeleted) == true) {
-      connection
-        .query(`SELECT post_imageURL from Post where post_id = ?`, [
-          parseInt(req.params.id),
-        ])
-        .then((results) => {
-          const file = results[0].post_imageURL;
-          const filename = file.split("/images/")[1];
+  const postId = req.params.id;
 
-          const filepath = `./images/${filename}`;
-          fs.unlinkSync(filepath);
-        })
-        .catch(() => {
-          return res.end("image non supprimée");
-        });
+  connection
+    .query("SELECT post_user_id FROM Post WHERE post_id = ?", [postId])
+    .then((results) => {
+      const postUserId = results[0].post_user_id;
 
-      connection
-        .query("UPDATE Post Set post_imageURL = NULL where post_id = ?", [
-          parseInt(req.params.id),
-        ])
-        .then(() => {
-          return res.send();
-        })
-        .catch(() => {
-          return res.send();
-        });
-    }
+      if (res.locals.isAdmin == "true" || postUserId == res.locals.userId) {
+        if (Boolean(req.body.fileDeleted) == true) {
+          connection
+            .query(`SELECT post_imageURL from Post where post_id = ?`, [
+              parseInt(req.params.id),
+            ])
+            .then((results) => {
+              const file = results[0].post_imageURL;
+              const filename = file.split("/images/")[1];
 
-    if (req.file) {
-      // S'il y a une requête pour changer l'image
-      connection
-        .query(`SELECT post_imageURL from post where post_id = ?`, [
-          parseInt(req.params.id),
-        ])
-        .then((results) => {
-          const file = results[0].post_imageURL;
-          const filename = file.split("/images/")[1];
+              const filepath = `./images/${filename}`;
+              fs.unlinkSync(filepath);
+            })
+            .catch(() => {
+              return res.end("image non supprimée");
+            });
 
-          const filepath = `./images/${filename}`;
-          fs.unlinkSync(filepath);
-        })
-        .catch(() => {
-          return res.end("image non supprimée");
-        });
+          connection
+            .query("UPDATE Post Set post_imageURL = NULL where post_id = ?", [
+              parseInt(req.params.id),
+            ])
+            .then(() => {
+              return res.send();
+            })
+            .catch(() => {
+              return res.send();
+            });
+        }
 
-      const newFile = `${req.protocol}://${req.get("host")}/images/${
-        req.file.filename
-      }`;
+        if (req.file) {
+          // S'il y a une requête pour changer l'image
+          connection
+            .query(`SELECT post_imageURL from post where post_id = ?`, [
+              parseInt(req.params.id),
+            ])
+            .then((results) => {
+              const file = results[0].post_imageURL;
+              const filename = file.split("/images/")[1];
 
-      connection
-        .query(
-          `UPDATE Post SET post_imageURL = '${newFile}' where post_id = ?`,
-          [parseInt(req.params.id)]
-        )
-        .then(() => {
-          return res.send();
-        })
-        .catch(() => {
-          return console.log("image non modifée");
-        });
-    }
+              const filepath = `./images/${filename}`;
+              fs.unlinkSync(filepath);
+            })
+            .catch(() => {
+              return res.end("image non supprimée");
+            });
 
-    let bodyRequest = req.body.text; // Attention au text
+          const newFile = `${req.protocol}://${req.get("host")}/images/${
+            req.file.filename
+          }`;
 
-    connection
-      .query(`UPDATE POST set post_body = ? where post_id = ?`, [
-        bodyRequest,
-        parseInt(req.params.id),
-      ])
-      .then(() => {
-        return res.send();
-      })
-      .catch({ error: "post non modifié" });
-  }
+          connection
+            .query(
+              `UPDATE Post SET post_imageURL = '${newFile}' where post_id = ?`,
+              [parseInt(req.params.id)]
+            )
+            .then(() => {
+              return res.send();
+            })
+            .catch(() => {
+              return console.log("image non modifée");
+            });
+        }
+
+        let bodyRequest = req.body.text; // Attention au text
+
+        connection
+          .query(`UPDATE POST set post_body = ? where post_id = ?`, [
+            bodyRequest,
+            parseInt(req.params.id),
+          ])
+          .then(() => {
+            return res.send();
+          })
+          .catch({ error: "post non modifié" });
+      }
+    })
+    .catch(() => {
+      return res
+        .status(402)
+        .end("Vous n'avez pas l'autorisation de modifier ce post");
+    });
 };
 
 exports.delete = (req, res, next) => {
-  const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
-  const userId = `${decodedToken.userId}`;
+  const postId = req.params.id;
 
-  if (userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-    //Suppression des images du post
-    connection
-      .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
-        parseInt(req.params.id),
-      ])
-      .then((results) => {
-        if (results[0].post_imageURL !== null) {
-          const file = results[0].post_imageURL;
-          const filename = file.split("/images/")[1];
-
-          const filepath = `./images/${filename}`;
-          fs.unlinkSync(filepath);
-        } else {
-          () => {
-            return console.log("il n'y a pas d'image");
-          };
-        }
-      })
-      .catch(() => {
-        return console.log("image non supprimée");
-      });
-  }
-
-  //Suppression des likes
   connection
-    .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
-    .then(() => {
-      return console.log("j'aime supprimés");
-    })
-    .catch(() => {
-      return console.log("Il n'y a pas de j'aime");
-    });
+    .query("SELECT post_user_id FROM Post WHERE post_id = ?", [postId])
+    .then((results) => {
+      const postUserId = results[0].post_user_id;
 
-  //Suppression des commentaires
-  connection
-    .query("DELETE FROM Comment where comment_post_id=?", [req.params.id])
-    .then(() => {
-      return console.log("commentaires supprimés");
-    })
-    .catch(() => {
-      return console.log("il n'y a pas de commentaires sur ce Post");
-    });
+      if (res.locals.isAdmin == "true" || postUserId == res.locals.userId) {
+        //Suppression des images du post
+        connection
+          .query(`SELECT post_imageURL from Post WHERE post_id = ?`, [
+            parseInt(req.params.id),
+          ])
+          .then((results) => {
+            if (results[0].post_imageURL !== null) {
+              const file = results[0].post_imageURL;
+              const filename = file.split("/images/")[1];
 
-  //Suppression du Post
-  connection
-    .query("DELETE FROM POST WHERE post_id=?", [req.params.id])
-    .then(() => {
-      return res.status(201).json("post supprimé");
+              const filepath = `./images/${filename}`;
+              fs.unlinkSync(filepath);
+            } else {
+              () => {
+                return console.log("il n'y a pas d'image");
+              };
+            }
+          })
+          .catch(() => {
+            return console.log("image non supprimée");
+          });
+
+        //Suppression des likes
+        connection
+          .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
+          .then(() => {
+            return console.log("j'aime supprimés");
+          })
+          .catch(() => {
+            return console.log("Il n'y a pas de j'aime");
+          });
+
+        //Suppression des commentaires
+        connection
+          .query("DELETE FROM Comment where comment_post_id=?", [req.params.id])
+          .then(() => {
+            return console.log("commentaires supprimés");
+          })
+          .catch(() => {
+            return console.log("il n'y a pas de commentaires sur ce Post");
+          });
+
+        //Suppression du Post
+        connection
+          .query("DELETE FROM POST WHERE post_id=?", [req.params.id])
+          .then(() => {
+            return res.status(201).json("post supprimé");
+          })
+          .catch(() => {
+            return res.status(401).json("post non supprimé");
+          });
+      }
     })
-    .catch(() => {
-      return res.status(401).json("post non supprimé");
-    });
+    .catch();
 };
 
 exports.getPost = (req, res, next) => {
@@ -213,7 +222,7 @@ exports.getPost = (req, res, next) => {
           post_imageURL: postData.post_imageURL,
           post_date: postData.post_date,
           listComment: [],
-          listLike: []
+          listLike: [],
         };
 
         if (
@@ -227,27 +236,25 @@ exports.getPost = (req, res, next) => {
 
       postList.forEach((likeData) => {
         if (likeData.like_id != null) {
-        const like = {
-          like_id: likeData.like_id,
-          like_post_id: likeData.like_post_id
-        }
-        const post = listOfAllPosts.find(
-          (postElement) => likeData.like_post_id == postElement.post_id
-        )
+          const like = {
+            like_id: likeData.like_id,
+            like_post_id: likeData.like_post_id,
+          };
+          const post = listOfAllPosts.find(
+            (postElement) => likeData.like_post_id == postElement.post_id
+          );
 
-        if (
-          !post.listLike.find(
-            (likeElement) =>
-              like.like_post_id == likeElement.post_id
-          )
-        ) {
-          if (likeData.like_id != null) {
-            post.listLike.push(like);
+          if (
+            !post.listLike.find(
+              (likeElement) => like.like_post_id == likeElement.post_id
+            )
+          ) {
+            if (likeData.like_id != null) {
+              post.listLike.push(like);
+            }
           }
-        }}
-
-
-      })
+        }
+      });
 
       postList.forEach((commentData) => {
         if (commentData.comment_body != null) {
@@ -260,7 +267,7 @@ exports.getPost = (req, res, next) => {
             comment_imageURL: commentData.comment_imageURL,
             comment_user_imageURL: commentData.comment_user_imageURL,
             comment_user_id: commentData.comment_user_id,
-            comment_date: commentData.comment_date
+            comment_date: commentData.comment_date,
           };
 
           const post = listOfAllPosts.find(

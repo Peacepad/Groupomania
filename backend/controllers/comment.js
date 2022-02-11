@@ -5,36 +5,30 @@ const fs = require("fs");
 const connection = require("../service/database");
 
 exports.create = (req, res, next) => {
-  const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
-  const userId = `${decodedToken.userId}`;
+  const userId = res.locals.userId;
 
-  if (req.body.userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-    let date =
+  let date =
     new Date().toISOString().slice(0, 10) +
     " " +
     new Date().toLocaleTimeString("fr-fr");
-    let bodyRequest = req.body.text;
+  let bodyRequest = req.body.text;
 
-    if (req.file) {
-      const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
-        req.file.filename
-      }`;
-      connection
-        .query(
-          `INSERT INTO Comment(comment_user_id, comment_body, comment_date, comment_imageURL, comment_post_id) values (?, ?, ?, ?, ?)`,
-          [userId, req.body.text, date, commentImageUrl, req.body.postId]
-        )
-        .then(() => {
-          return res.status(201).json("commentaire créé !");
-        })
-        .catch(() => {
-          return res.status(401).send("le commentaire n'a pas pu être créé");
-        });
-      } else {
+  if (req.file) {
+    const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
+      req.file.filename
+    }`;
+    connection
+      .query(
+        `INSERT INTO Comment(comment_user_id, comment_body, comment_date, comment_imageURL, comment_post_id) values (?, ?, ?, ?, ?)`,
+        [userId, req.body.text, date, commentImageUrl, req.body.postId]
+      )
+      .then(() => {
+        return res.status(201).json("commentaire créé !");
+      })
+      .catch(() => {
+        return res.status(401).send("le commentaire n'a pas pu être créé");
+      });
+  } else {
     connection
       .query(
         `INSERT INTO Comment(comment_user_id, comment_post_id, comment_body, comment_date) values (?, ?, ?, ?)`,
@@ -43,43 +37,20 @@ exports.create = (req, res, next) => {
       .then(() => res.status(201).json({ message: "Commentaire créé !" }))
       .catch((error) => res.status(400).json({ error }));
   }
-  }
-};
-
-exports.update = (req, res, next) => {
-  if (req.body.userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-    if (req.body.userId != results[0].user_id) {
-      // Si l'id n'est pas le même que celui qui a créer le post
-      res
-        .status(403)
-        .json({ error: "vous ne pouvez pas modifier ce commentaire" });
-    } else {
-      let bodyRequest = req.body.text; // Attention au text
-      l;
-      connection
-        .query(`UPDATE Comment set body = ? where post_id = ?`, [
-          bodyRequest,
-          req.body.post_id,
-        ])
-        .then(() => res.status(201).json({ message: "Commentaire modifié !" }))
-        .catch((error) => res.status(400).json({ error }));
-    }
-  }
 };
 
 exports.delete = (req, res, next) => {
-  const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
-  const userId = `${decodedToken.userId}`;
+  const userId = res.locals.userId;
+  const commentId = parseInt(req.params.commentId);
+  connection
+    .query("SELECT comment_user_id FROM Comment WHERE comment_id = ?", [
+      commentId,
+    ])
+    .then((results) => {
+      const commentUserId = results[0].comment_user_id;
 
-  if (userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-
+      if (res.locals.isAdmin == "true" || commentUserId == res.locals.userId) {
+  
     // Suppression des images
     connection
       .query(`SELECT comment_imageURL from Comment WHERE comment_id = ?`, [
@@ -101,9 +72,6 @@ exports.delete = (req, res, next) => {
       .catch(() => {
         return console.log("image non supprimée");
       });
-  
-
-
 
     connection
       .query(`DELETE from Comment where comment_id=?`, [
@@ -117,89 +85,106 @@ exports.delete = (req, res, next) => {
       .catch(() =>
         res.status(402).json({ error: "erreur lors de la suppression" })
       );
-  }
+    }
+  })
+  .catch(() => {
+    return res
+      .status(402)
+      .end("Vous n'avez pas l'autorisation de supprimer ce commentaire");
+  });
 };
 
 exports.update = (req, res, next) => {
-  
-  if (req.body.userId === null) {
-    // S'il n'y a pas d'id lors de la requête
-    return res.status(401).end("Utilisateur non identifié");
-  } else {
-    if (Boolean(req.body.fileDeleted) == true) {
-      connection
-        .query(`SELECT comment_imageURL from Comment where comment_id = ?`, [
-          parseInt(req.params.commentId),
-        ])
-        .then((results) => {
-          const file = results[0].comment_imageURL;
-          const filename = file.split("/images/")[1];
+  const commentId = parseInt(req.params.commentId);
+  connection
+    .query("SELECT comment_user_id FROM Comment WHERE comment_id = ?", [
+      commentId,
+    ])
+    .then((results) => {
+      const commentUserId = results[0].comment_user_id;
 
-          const filepath = `./images/${filename}`;
-          fs.unlinkSync(filepath);
-        })
-        .catch(() => {
-          return res.end("image non supprimée");
-        });
+      if (res.locals.isAdmin == "true" || commentUserId == res.locals.userId) {
+        if (Boolean(req.body.fileDeleted) == true) {
+          connection
+            .query(
+              `SELECT comment_imageURL from Comment where comment_id = ?`,
+              [commentId]
+            )
+            .then((results) => {
+              const file = results[0].comment_imageURL;
+              const filename = file.split("/images/")[1];
 
-      connection
-        .query("UPDATE Comment Set comment_imageURL = NULL where comment_id = ?", [
-          parseInt(req.params.commentId),
-        ])
-        .then(() => {
-          return res.send();
-        })
-        .catch(() => {
-          return res.send();
-        });
-    }
+              const filepath = `./images/${filename}`;
+              fs.unlinkSync(filepath);
+            })
+            .catch(() => {
+              return res.end("image non supprimée");
+            });
 
-    if (req.file) {
-      // S'il y a une requête pour changer l'image
-      connection
-        .query(`SELECT comment_imageURL from comment where comment_id = ?`, [
-          parseInt(req.params.commentId),
-        ])
-        .then((results) => {
-          const file = results[0].comment_imageURL;
-          const filename = file.split("/images/")[1];
+          connection
+            .query(
+              "UPDATE Comment Set comment_imageURL = NULL where comment_id = ?",
+              [commentId]
+            )
+            .then(() => {
+              return res.send();
+            })
+            .catch(() => {
+              return res.send();
+            });
+        }
 
-          const filepath = `./images/${filename}`;
-          fs.unlinkSync(filepath);
-        })
-        .catch(() => {
-          return res.end("image non supprimée");
-        });
+        if (req.file) {
+          // S'il y a une requête pour changer l'image
+          connection
+            .query(
+              `SELECT comment_imageURL from comment where comment_id = ?`,
+              [commentId]
+            )
+            .then((results) => {
+              const file = results[0].comment_imageURL;
+              const filename = file.split("/images/")[1];
 
-      const newFile = `${req.protocol}://${req.get("host")}/images/${
-        req.file.filename
-      }`;
+              const filepath = `./images/${filename}`;
+              fs.unlinkSync(filepath);
+            })
+            .catch(() => {
+              return res.end("image non supprimée");
+            });
 
-      connection
-        .query(
-          `UPDATE comment SET comment_imageURL = '${newFile}' where comment_id = ?`,
-          [parseInt(req.params.commentId)]
-        )
-        .then(() => {
-          return res.send();
-        })
-        .catch(() => {
-          return console.log("image non modifée");
-        });
-    }
+          const newFile = `${req.protocol}://${req.get("host")}/images/${
+            req.file.filename
+          }`;
 
-    let bodyRequest = req.body.text; // Attention au text
+          connection
+            .query(
+              `UPDATE comment SET comment_imageURL = '${newFile}' where comment_id = ?`,
+              [commentId]
+            )
+            .then(() => {
+              return res.send();
+            })
+            .catch(() => {
+              return console.log("image non modifée");
+            });
+        }
 
-    connection
-      .query(`UPDATE comment set comment_body = ? where comment_id = ?`, [
-        bodyRequest,
-        parseInt(req.params.commentId),
-      ])
-      .then(() => {
-        return res.send();
-      })
-      .catch({ error: "comment non modifié" });
-  }
+        let bodyRequest = req.body.text;
 
-
-}
+        connection
+          .query(`UPDATE comment set comment_body = ? where comment_id = ?`, [
+            bodyRequest,
+            commentId,
+          ])
+          .then(() => {
+            return res.send();
+          })
+          .catch({ error: "comment non modifié" });
+      }
+    })
+    .catch(() => {
+      return res
+        .status(402)
+        .end("Vous n'avez pas l'autorisation de modifier ce commentaire");
+    });
+};
