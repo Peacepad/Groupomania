@@ -267,7 +267,7 @@ exports.getOneUser = (req, res, next) => {
   connection
     .query(
       `
-  select firstname, lastname, email, imageUrl, user_id from User where user_id =?`,
+  select firstname, lastname, email, user_imageUrl, user_id from User where user_id =?`,
       [req.params.id]
     )
     .then((user) => res.status(200).json(user))
@@ -275,6 +275,7 @@ exports.getOneUser = (req, res, next) => {
 };
 
 exports.delete = (req, res, next) => {
+  const userId = req.params.id;
   if (res.locals.isAdmin == 'true' || userId == res.locals.userId) {
   const userId = req.params.id;
 

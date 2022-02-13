@@ -34,17 +34,22 @@ exports.create = (req, res, next) => {
         return res.status(401).send("le post n'a pas pu être créé");
       });
   } else {
-    connection
-      .query(
-        `INSERT INTO Post(post_user_id, post_body, post_date) values (?, ?, ?)`,
-        [userId, req.body.text, date]
-      )
-      .then(() => {
-        return res.status(201).json({ message: "Post créé !" });
-      })
-      .catch(() => {
-        return res.status(400).send("le post n'a pas pu être créé");
-      });
+    const postBody =  req.body.text;
+    if (postBody.trim() == false) {
+      return res.status(402).json("Veuillez écrire un message");
+    } else {
+      connection
+        .query(
+          `INSERT INTO Post(post_user_id, post_body, post_date) values (?, ?, ?)`,
+          [userId, req.body.text, date]
+        )
+        .then(() => {
+          return res.status(201).json({ message: "Post créé !" });
+        })
+        .catch(() => {
+          return res.status(400).send("le post n'a pas pu être créé");
+        });
+    }
   }
 };
 
@@ -99,7 +104,7 @@ exports.update = (req, res, next) => {
               fs.unlinkSync(filepath);
             })
             .catch(() => {
-              return res.end("image non supprimée");
+              return res.end();
             });
 
           const newFile = `${req.protocol}://${req.get("host")}/images/${
@@ -115,21 +120,25 @@ exports.update = (req, res, next) => {
               return res.send();
             })
             .catch(() => {
-              return console.log("image non modifée");
+              return res.send();
             });
         }
 
-        let bodyRequest = req.body.text; // Attention au text
+        let bodyRequest = req.body.text;
 
-        connection
-          .query(`UPDATE POST set post_body = ? where post_id = ?`, [
-            bodyRequest,
-            parseInt(req.params.id),
-          ])
-          .then(() => {
-            return res.send();
-          })
-          .catch({ error: "post non modifié" });
+        if (bodyRequest === "") {
+          return res.status(400).send("Veuillez écrire un message");
+        } else {
+          connection
+            .query(`UPDATE POST set post_body = ? where post_id = ?`, [
+              bodyRequest,
+              parseInt(req.params.id),
+            ])
+            .then(() => {
+              return res.status(200).write("Commentaire modifié");
+            })
+            .catch({ error: "post non modifié" });
+        }
       }
     })
     .catch(() => {
@@ -179,6 +188,29 @@ exports.delete = (req, res, next) => {
           .catch(() => {
             return console.log("Il n'y a pas de j'aime");
           });
+
+          // Supression des images des commentaires
+          connection
+            .query(
+              "SELECT comment_imageURL FROM Comment where comment_post_id= ?",
+              [req.params.id]
+            )
+            .then((commentResults) => {
+              for (let l = 0; l < commentResults.length; l++) {
+                if (commentResults.comment_imageURL !== null) {
+                  const file = commentResults[0].comment_imageURL;
+                  const filename = file.split("/images/")[1];
+
+                  const filepath = `./images/${filename}`;
+                  fs.unlinkSync(filepath);
+                }
+              }
+            })
+            .catch(() => {
+              return console.log(
+                "images des commentaires liés aux posts créés par l'utilisateur non supprimés"
+              );
+            });
 
         //Suppression des commentaires
         connection

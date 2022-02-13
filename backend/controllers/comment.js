@@ -14,7 +14,10 @@ exports.create = (req, res, next) => {
   let bodyRequest = req.body.text;
 
   if (req.file) {
-    const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
+    if (bodyRequest.trim() == false) {
+      return res.status(402).json("Veuillez écrire un message");
+    } else
+ {   const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
       req.file.filename
     }`;
     connection
@@ -27,8 +30,12 @@ exports.create = (req, res, next) => {
       })
       .catch(() => {
         return res.status(401).send("le commentaire n'a pas pu être créé");
-      });
+      });}
+
   } else {
+    if (bodyRequest.trim() == false) {
+      return res.status(402).json("Veuillez écrire un message");
+    } else {
     connection
       .query(
         `INSERT INTO Comment(comment_user_id, comment_post_id, comment_body, comment_date) values (?, ?, ?, ?)`,
@@ -36,6 +43,8 @@ exports.create = (req, res, next) => {
       )
       .then(() => res.status(201).json({ message: "Commentaire créé !" }))
       .catch((error) => res.status(400).json({ error }));
+      }
+
   }
 };
 
