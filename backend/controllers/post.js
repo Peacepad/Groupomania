@@ -4,6 +4,7 @@ const fs = require("fs");
 const jwt = require("jsonwebtoken");
 
 const connection = require("../service/database");
+const { post } = require("../routes/user");
 
 exports.create = (req, res, next) => {
   let date =
@@ -34,7 +35,7 @@ exports.create = (req, res, next) => {
         return res.status(401).send("le post n'a pas pu être créé");
       });
   } else {
-    const postBody =  req.body.text;
+    const postBody = req.body.text;
     if (postBody.trim() == false) {
       return res.status(402).json("Veuillez écrire un message");
     } else {
@@ -189,28 +190,28 @@ exports.delete = (req, res, next) => {
             return console.log("Il n'y a pas de j'aime");
           });
 
-          // Supression des images des commentaires
-          connection
-            .query(
-              "SELECT comment_imageURL FROM Comment where comment_post_id= ?",
-              [req.params.id]
-            )
-            .then((commentResults) => {
-              for (let l = 0; l < commentResults.length; l++) {
-                if (commentResults.comment_imageURL !== null) {
-                  const file = commentResults[0].comment_imageURL;
-                  const filename = file.split("/images/")[1];
+        // Supression des images des commentaires
+        connection
+          .query(
+            "SELECT comment_imageURL FROM Comment where comment_post_id= ?",
+            [req.params.id]
+          )
+          .then((commentResults) => {
+            for (let l = 0; l < commentResults.length; l++) {
+              if (commentResults.comment_imageURL !== null) {
+                const file = commentResults[0].comment_imageURL;
+                const filename = file.split("/images/")[1];
 
-                  const filepath = `./images/${filename}`;
-                  fs.unlinkSync(filepath);
-                }
+                const filepath = `./images/${filename}`;
+                fs.unlinkSync(filepath);
               }
-            })
-            .catch(() => {
-              return console.log(
-                "images des commentaires liés aux posts créés par l'utilisateur non supprimés"
-              );
-            });
+            }
+          })
+          .catch(() => {
+            return console.log(
+              "images des commentaires liés aux posts créés par l'utilisateur non supprimés"
+            );
+          });
 
         //Suppression des commentaires
         connection
@@ -239,7 +240,7 @@ exports.delete = (req, res, next) => {
 exports.getPost = (req, res, next) => {
   connection
     .query(
-      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, likes, comment_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL, comment_user.user_id AS comment_user_id, like_post.id AS like_id, like_post.like_post_id AS like_post_id  FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id LEFT JOIN like_post AS like_post ON post_id = like_post.like_post_id;"
+      "SELECT post_id, post_user_id, post_body, post_date, post_imageURL, post_user_id, comment_id, comment_body, comment_date, comment_post_id, comment_imageURL, post_user.firstname AS post_firstname, post_user.lastname AS post_lastname, post_user.user_imageURL, comment_user.firstname AS comment_firstname, comment_user.lastname AS comment_lastname, comment_user.user_imageURL AS comment_user_imageURL, comment_user.user_id AS comment_user_id FROM POST LEFT JOIN comment ON post_id = comment.comment_post_id LEFT JOIN user AS post_user ON post.post_user_id = post_user.user_id LEFT JOIN user AS comment_user ON comment.comment_user_id = comment_user.user_id;"
     )
     .then((postList) => {
       const listOfAllPosts = [];
@@ -266,27 +267,7 @@ exports.getPost = (req, res, next) => {
         }
       });
 
-      postList.forEach((likeData) => {
-        if (likeData.like_id != null) {
-          const like = {
-            like_id: likeData.like_id,
-            like_post_id: likeData.like_post_id,
-          };
-          const post = listOfAllPosts.find(
-            (postElement) => likeData.like_post_id == postElement.post_id
-          );
-
-          if (
-            !post.listLike.find(
-              (likeElement) => like.like_post_id == likeElement.post_id
-            )
-          ) {
-            if (likeData.like_id != null) {
-              post.listLike.push(like);
-            }
-          }
-        }
-      });
+      
 
       postList.forEach((commentData) => {
         if (commentData.comment_body != null) {
@@ -324,13 +305,4 @@ exports.getPost = (req, res, next) => {
     .catch((error) => res.status(500).send("server issue"));
 };
 
-exports.getLikes = (req, res, next) => {
-  connection
-    .query("SELECT likes from Post where post_id= ?", [req.params.id])
-    .then((results) => {
-      return res.status(201).json(results[0].likes);
-    })
-    .catch(() => {
-      return res.status(401).json("Nombre de like non obtenu");
-    });
-};
+

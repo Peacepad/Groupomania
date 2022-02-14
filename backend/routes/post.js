@@ -11,7 +11,7 @@ router.post('/create', auth, multer, postCtrl.create); //penser à mettre auth e
 router.put('/:id', auth, multer,postCtrl.update);
 router.delete('/:id', auth, postCtrl.delete);
 router.get('/', postCtrl.getPost);
-router.get('/:id/likes', postCtrl.getLikes);
+
 //
 
 
