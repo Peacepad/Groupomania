@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 module.exports = (req, res, next) => {
   try {
     const token = req.headers.authorization.split(' ')[1];
-    const decodedToken = jwt.verify(token, 'M0N_T0K3N_3ST_1NTR0UV4BL3');
+    const decodedToken = jwt.verify(token,  process.env.DB_TOKEN);
     const userId = `${decodedToken.userId}`;
     const isAdmin = `${decodedToken.isAdmin}`;
     

@@ -102,7 +102,7 @@ exports.login = (req, res, next) => {
                           userId: results[0].user_id,
                           isAdmin: true,
                         },
-                        "M0N_T0K3N_3ST_1NTR0UV4BL3",
+                        process.env.DB_TOKEN,
                         { expiresIn: "24h" }
                       ),
                       userData: JSON.stringify({
@@ -162,7 +162,7 @@ exports.login = (req, res, next) => {
                         {
                           userId: results[0].user_id,
                         },
-                        "M0N_T0K3N_3ST_1NTR0UV4BL3",
+                        process.env.DB_TOKEN,
                         { expiresIn: "24h" }
                       ),
                       userData: JSON.stringify({
@@ -171,6 +171,7 @@ exports.login = (req, res, next) => {
                         userLastname,
                         userImageURL,
                         userId,
+                        isAdmin: 0,
                       }),
                     });
                   });
@@ -191,7 +192,7 @@ exports.login = (req, res, next) => {
 exports.update = (req, res, next) => {
   const userId = parseInt(req.params.id);
 
-  if (res.locals.isAdmin == 'true' || userId == res.locals.userId) {
+  if (res.locals.isAdmin == "true" || userId == res.locals.userId) {
     const { firstname, lastname, email, password } = req.body;
 
     if (req.file) {
@@ -276,182 +277,189 @@ exports.getOneUser = (req, res, next) => {
 
 exports.delete = (req, res, next) => {
   const userId = req.params.id;
-  if (res.locals.isAdmin == 'true' || userId == res.locals.userId) {
-  const userId = req.params.id;
+  if (res.locals.isAdmin == "true" || userId == res.locals.userId) {
+    connection.query("start transaction");
 
-  // on supprime ses photos des commentaires
+    try {
+      // On supprime les photos des commentaires
+      let sql = `SELECT comment_imageURL FROM comment where comment_user_id = ${userId}`;
 
-  connection
-    .query("SELECT comment_imageURL FROM comment where comment_user_id = ?", [
-      userId,
-    ])
-    .then((results) => {
-      if (results.length !== 0) {
-        for (let i = 0; i <= results.length; i++) {
-          if (results[i].comment_imageURL !== null) {
-            const file = results[i].comment_imageURL;
+      connection.query(sql, (err, results) => {
+        if (err) throw err;
+
+        for (let l = 0; l < results.length; l++) {
+          if (results[l].comment_imageURL !== null) {
+            const file = results[l].comment_imageURL;
             const filename = file.split("/images/")[1];
 
             const filepath = `./images/${filename}`;
             fs.unlinkSync(filepath);
+
+           
+
+          connection.query(
+            `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`,
+          );
+        
           }
         }
-      }
-    })
-    .catch(() => {
-      console.log("les images des commentaires n'ont pas été supprimées");
-    });
-  // on supprime ses commentaires
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  connection
-    .query("DELETE FROM comment where comment_user_id = ?", [userId])
-    .then(() => {
-      return console.log("commentaires de l'utilisateur supprimés");
-    })
-    .catch(() => {
-      return console.log("commentaires de l'utilisateur non supprimés");
-    });
-  // on supprime ses likes
+    // On supprime ses commentaires
+    try {
+      let sql2 = `DELETE FROM comment where comment_user_id = ${userId}`;
+      connection.query(sql2, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  connection
-    .query("DELETE FROM like_post where like_user_id = ?", [userId])
-    .then(() => {
-      return console.log("j'aime supprimés");
-    })
-    .catch(() => {
-      return console.log("j'aime non supprimés");
-    });
+    // On supprime ses likes
 
-  // on supprime les photos des commentaires laissés sur ses posts et les likes
-  connection
-    .query("SELECT post_id from Post WHERE post_user_id = ?", [userId])
-    .then((results) => {
-      if (results.length != 0) {
-        for (let i = 0; i < results.length; i++) {
-          connection
-            .query(
-              "SELECT comment_imageURL FROM Comment where comment_post_id= ?",
-              [results[i].post_id]
-            )
-            .then((commentResults) => {
+    try {
+      let sql3 = `DELETE FROM like_post where like_user_id = ${userId}`;
+      connection.query(sql3, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
+
+    // On supprime les photos des commentaires laissés sur ses posts et les likes
+    try {
+      let sql4 = `SELECT post_id from Post WHERE post_user_id = ${userId}`;
+      connection.query(sql4, (err, results) => {
+        if (err) throw err;
+        if (results.length != 0) {
+          for (let i = 0; i < results.length; i++) {
+            let mysql5 = `SELECT comment_imageURL FROM Comment where comment_post_id= ${results[i].post_id}`;
+
+            connection.query(mysql5, (err, commentResults) => {
+              if (err) throw err;
               for (let l = 0; l < commentResults.length; l++) {
-                if (commentResults.comment_imageURL !== null) {
-                  const file = commentResults[0].comment_imageURL;
+                if (commentResults[l].comment_imageURL !== null) {
+                  const file = commentResults[l].comment_imageURL;
                   const filename = file.split("/images/")[1];
 
                   const filepath = `./images/${filename}`;
                   fs.unlinkSync(filepath);
+
+                  connection.query(
+                    `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`,
+                  );
                 }
               }
-            })
-            .catch(() => {
-              return console.log(
-                "images des commentaires liés aux posts créés par l'utilisateur non supprimés"
-              );
             });
 
-          connection
-            .query("DELETE FROM Comment WHERE comment_post_id=?", [
-              results[i].post_id,
-            ])
-            .then(() => {
-              return console.log(
-                "commentaires liés aux posts de l'utilisateur supprimés"
-              );
-            })
-            .catch(() => {
-              return console.log(
-                "commentaires liés aux posts de l'utilisateur non supprimés"
-              );
+            let mysql6 = `DELETE FROM Comment WHERE comment_post_id= ${results[i].post_id}`;
+
+            connection.query(mysql6, (err, results) => {
+              if (err) throw err;
             });
 
-          connection
-            .query("DELETE FROM like_post WHERE like_post_id=?", [
-              results[i].post_id,
-            ])
-            .then(() => {
-              return console.log(
-                "like laissés sur les posts de l'utilisateur supprimés"
-              );
-            })
-            .catch(() => {
-              return console.log(
-                "like laissés sur les posts de l'utilisateur none supprimés"
-              );
+            let mysql7 = `DELETE FROM like_post WHERE like_post_id= ${results[i].post_id}`;
+
+            connection.query(mysql7, (err, results) => {
+              if (err) throw err;
             });
+          }
         }
-      }
-    });
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  // on supprime ses likes
+    // on supprime ses likes
 
-  connection
-    .query("DELETE FROM like_post WHERE like_user_id = ?", [userId])
-    .then(() => {
-      console.log("likes de l'utilisateur supprimés");
-    })
-    .catch(() => {
-      console.log("likes de l'utilisateur non supprimés");
-    });
+    try {
+      let mysql8 = `DELETE FROM like_post WHERE like_user_id = ${userId}`;
+      connection.query(mysql8, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  // on supprime les photos des posts
+    // on supprime les photos des posts
 
-  connection
-    .query("SELECT post_imageURL FROM Post where post_user_id = ?", [userId])
-    .then((results) => {
-      for (let i = 0; i < results.length; i++) {
-        if (results[i].post_imageURL !== null) {
-          const file = results[0].post_imageURL;
+    try {
+      let mysql9 = `SELECT post_imageURL FROM Post where post_user_id = ${userId}`;
+      connection.query(mysql9, (err, results) => {
+        if (err) throw err;
+        for (let i = 0; i < results.length; i++) {
+          if (results[i].post_imageURL !== null) {
+            const file = results[i].post_imageURL;
+            const filename = file.split("/images/")[1];
+
+            const filepath = `./images/${filename}`;
+            fs.unlinkSync(filepath);
+
+            connection.query(
+              `UPDATE Post SET post_imageURL = NULL where post_imageURL = "${results[i].post_imageURL}"`,
+            );
+          }
+        }
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
+
+    // on supprime les posts
+    try {
+      let mysql10 = `DELETE FROM POST where post_user_id= ${userId}`;
+      connection.query(mysql10, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
+
+    // on supprime la photo de profil
+
+    try {
+      let mysql11 = `SELECT user_imageURL FROM user where user_id = ${userId}`;
+      connection.query(mysql11, (err, results) => {
+        if (err) throw err;
+        if (results[0].user_imageURL && results[0].user_imageURL !== null) {
+          const file = results[0].user_imageURL;
           const filename = file.split("/images/")[1];
 
           const filepath = `./images/${filename}`;
           fs.unlinkSync(filepath);
         }
-      }
-    })
-    .catch(() => {
-      return console.log("les images des posts n'ont pas été supprimées");
-    });
-  // on supprime les posts
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  connection
-    .query("DELETE FROM POST where post_user_id= ?", [userId])
-    .then(() => {
-      return console.log("posts écrit par l'utilisateur supprimés");
-    })
-    .catch(() => {
-      return console.log("posts de l'utilisateur non supprimés");
-    });
+    // on supprime le profil
 
-  // on supprime la photo de profil
+    try {
+      let mysql12 = `DELETE FROM USER WHERE user_id = ${userId}`;
+      connection.query(mysql12, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {
+      connection.query("rollback");
+    }
 
-  connection
-    .query("SELECT user_imageURL FROM user where user_id = ?", [userId])
-    .then((results) => {
-      if (results.user_imageURL !== null) {
-        const file = results[0].user_imageURL;
-        const filename = file.split("/images/")[1];
-
-        const filepath = `./images/${filename}`;
-        fs.unlinkSync(filepath);
-      }
-    })
-    .catch(() => {
-      return console.log("l'image de l'utilisateur n'a pas été supprimée");
-    });
-
-  // on supprime le profil
-
-  connection
-    .query("DELETE FROM USER WHERE user_id = ?", [userId])
-    .then(() => {
-      return res.status(201).json("user delete");
-    })
-    .catch(() => {
-      return res.status(401).json("user not delete");
-    });
-  }
-  else {
-    return res.status(401).json("Vous ne pouvez pas supprimer cet utilisateur");
+    connection
+      .query("commit")
+      .then(() => {
+        return res.status(201).json("Utilisateur supprimé");
+      })
+      .catch(() => {
+        return res.status(401).json("Utilisateur non supprimé");
+      });
+  } else {
+    () => {
+      return res
+        .status(401)
+        .json("Vous ne pouvez pas supprimer cet utilisateur");
+    };
   }
 };

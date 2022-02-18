@@ -4,18 +4,13 @@ const fs = require("fs");
 const jwt = require("jsonwebtoken");
 
 const connection = require("../service/database");
-const { post } = require("../routes/user");
 
 exports.create = (req, res, next) => {
+  const userId = res.locals.userId;
   let date =
     new Date().toISOString().slice(0, 10) +
     " " +
     new Date().toLocaleTimeString("fr-fr");
-
-  //
-  const token = req.headers.authorization.split(" ")[1];
-  const decodedToken = jwt.verify(token, "M0N_T0K3N_3ST_1NTR0UV4BL3");
-  const userId = `${decodedToken.userId}`;
 
   //
 
@@ -63,7 +58,7 @@ exports.update = (req, res, next) => {
       const postUserId = results[0].post_user_id;
 
       if (res.locals.isAdmin == "true" || postUserId == res.locals.userId) {
-        if (Boolean(req.body.fileDeleted) == true) {
+        if (req.body.fileDeleted == "true") {
           connection
             .query(`SELECT post_imageURL from Post where post_id = ?`, [
               parseInt(req.params.id),
@@ -74,21 +69,16 @@ exports.update = (req, res, next) => {
 
               const filepath = `./images/${filename}`;
               fs.unlinkSync(filepath);
+              
             })
             .catch(() => {
-              return res.end("image non supprimée");
+              return console.log("image non supprimée");
             });
 
-          connection
-            .query("UPDATE Post Set post_imageURL = NULL where post_id = ?", [
-              parseInt(req.params.id),
-            ])
-            .then(() => {
-              return res.send();
-            })
-            .catch(() => {
-              return res.send();
-            });
+          connection.query(
+            "UPDATE Post Set post_imageURL = NULL where post_id = ?",
+            [parseInt(req.params.id)]
+          );
         }
 
         if (req.file) {
@@ -105,24 +95,18 @@ exports.update = (req, res, next) => {
               fs.unlinkSync(filepath);
             })
             .catch(() => {
-              return res.end();
+              // le retour se fait s'il n'y avait pas d'image avant, pas de souci si catch est retournée
+              return console.log("imageURL non modifié")
             });
 
           const newFile = `${req.protocol}://${req.get("host")}/images/${
             req.file.filename
           }`;
 
-          connection
-            .query(
-              `UPDATE Post SET post_imageURL = '${newFile}' where post_id = ?`,
-              [parseInt(req.params.id)]
-            )
-            .then(() => {
-              return res.send();
-            })
-            .catch(() => {
-              return res.send();
-            });
+          connection.query(
+            `UPDATE Post SET post_imageURL = '${newFile}' where post_id = ?`,
+            [parseInt(req.params.id)]
+          );
         }
 
         let bodyRequest = req.body.text;
@@ -136,7 +120,7 @@ exports.update = (req, res, next) => {
               parseInt(req.params.id),
             ])
             .then(() => {
-              return res.status(200).write("Commentaire modifié");
+              return res.status(200).send("Postmodifié");
             })
             .catch({ error: "post non modifié" });
         }
@@ -181,14 +165,9 @@ exports.delete = (req, res, next) => {
           });
 
         //Suppression des likes
-        connection
-          .query("DELETE FROM like_post WHERE like_post_id= ?", [req.params.id])
-          .then(() => {
-            return console.log("j'aime supprimés");
-          })
-          .catch(() => {
-            return console.log("Il n'y a pas de j'aime");
-          });
+        connection.query("DELETE FROM like_post WHERE like_post_id= ?", [
+          req.params.id,
+        ]);
 
         // Supression des images des commentaires
         connection
@@ -267,8 +246,6 @@ exports.getPost = (req, res, next) => {
         }
       });
 
-      
-
       postList.forEach((commentData) => {
         if (commentData.comment_body != null) {
           const comment = {
@@ -304,5 +281,3 @@ exports.getPost = (req, res, next) => {
     })
     .catch((error) => res.status(500).send("server issue"));
 };
-
-

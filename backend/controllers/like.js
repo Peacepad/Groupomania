@@ -44,9 +44,10 @@ exports.create = (req, res, next) => {
 
 exports.getLikes = (req, res, next) => {
   connection
-    .query("SELECT like_user_id from like_post where like_post_id= ?", [req.params.id])
+    .query("SELECT like_user_id from like_post where like_post_id= ?", [
+      req.params.id,
+    ])
     .then((results) => {
-      console.log(results.length)
       return res.status(201).json(results.length);
     })
     .catch(() => {
