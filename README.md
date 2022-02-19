@@ -31,3 +31,7 @@ Ouvrez un nouveau terminal dans le dossier du projet, exécutez les commandes :
 * ``npm install``
 
 * ``npm start``
+
+## Notes utiles
+
+Les fichiers .env ne sont pas inclus
