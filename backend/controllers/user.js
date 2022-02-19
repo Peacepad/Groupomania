@@ -278,6 +278,7 @@ exports.getOneUser = (req, res, next) => {
 exports.delete = (req, res, next) => {
   const userId = req.params.id;
   if (res.locals.isAdmin == "true" || userId == res.locals.userId) {
+    
     connection.query("start transaction");
 
     try {

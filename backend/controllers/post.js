@@ -177,8 +177,8 @@ exports.delete = (req, res, next) => {
           )
           .then((commentResults) => {
             for (let l = 0; l < commentResults.length; l++) {
-              if (commentResults.comment_imageURL !== null) {
-                const file = commentResults[0].comment_imageURL;
+              if (commentResults[l].comment_imageURL !== null) {
+                const file = commentResults[l].comment_imageURL;
                 const filename = file.split("/images/")[1];
 
                 const filepath = `./images/${filename}`;
