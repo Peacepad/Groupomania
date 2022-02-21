@@ -17,7 +17,7 @@ exports.create = (req, res, next) => {
     if (bodyRequest.trim() == false) {
       return res.status(402).json("Veuillez écrire un message");
     } else {
-      console.log(bodyRequest.trim());
+      
       const commentImageUrl = `${req.protocol}://${req.get("host")}/images/${
         req.file.filename
       }`;
