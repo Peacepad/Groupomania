@@ -1,0 +1,151 @@
+.profil-avatar {
+  width: 90%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  
+  & form {
+      display: flex;
+      flex-direction: column;
+  }
+}
+
+.profil-image {
+  display:none
+}
+
+
+.profil-button {
+  background-color: white;
+  
+  color: black;
+  border-radius: 6px;
+  
+  font-size: 1.1em;
+  height: 40px;
+  width: 165px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 20px;
+  font-size: 1em;
+  &:hover  {
+    background-color: darken(white,10%);
+  }
+}
+
+#profil-submit {
+  background-color: white;
+  border: solid 1px grey;
+  border-radius: 6px;
+  height:30px;
+  font-size: 1em;
+  width: 205px;
+  &:hover  {
+    background-color: darken(white,10%);
+  }
+}
+
+.profil-info {
+  width: 80%;
+  margin: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 50px;
+  background-color: white;
+  border-radius: 6px;
+  padding:20px;
+  position: relative;
+  & h2 {
+    margin-top:0;
+  }
+  @media (max-width: 768px) {
+    width: 95%;
+  }
+}
+
+.profil-edit {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items:center;
+}
+
+.profil-avatar__preview {
+  height: 200px;
+  width: 200px;
+  
+  position: relative;
+  & img {
+    position: absolute;
+    height: 200px;
+    width: 200px;
+    top: 0;
+    left: 0;
+    border-radius: 50%;
+    object-fit:cover;
+    border: solid 5px white;
+  }
+  & div {
+    border: solid 5px white;
+    border-radius: 50%;
+  }
+}
+
+.profil-edit__label {
+  width: 100%;
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 20px;
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: center;
+    height: 130px;
+  }
+  & label {
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+     width: 80%;
+     
+  }
+}
+
+#profil-delete {
+  margin:auto;
+  margin-top: 20px;
+  width: 80%;
+  display: flex;
+  justify-content: center;
+}
+
+.profil-delete__button {
+  background-color: #FD2D01;
+  border: none ;
+  border-radius: 6px;
+  height:30px;
+  font-size: 1em;
+  width: 205px;
+  color:white;
+  &:hover {
+    background-color: lighten(#FD2D01, 10%);
+  }
+}
+
+.pulse {
+  animation: pulse 500ms infinite alternate forwards;
+  &:hover {
+    animation-play-state: paused;
+  }
+}
+
+@keyframes pulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.05);
+  }
+}

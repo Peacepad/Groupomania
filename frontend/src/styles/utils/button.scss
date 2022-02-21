@@ -1,0 +1,9 @@
+.button {
+  background-color: $red-link;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  &:hover {
+    background-color: darken($red-link, 5%);
+  }
+}

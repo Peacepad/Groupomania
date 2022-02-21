@@ -1,0 +1,128 @@
+.edit-container {
+  display: none;
+
+  z-index: 1;
+  background-color: lighten($back-color, 5%);
+  width: 800px;
+  height: 600px;
+  padding: 20px;
+  border-radius: 3px;
+  animation: edit-appear 500ms both alternate;
+  z-index: 1;
+
+  @media (max-width: 768px) {
+    width: 100%;
+  }
+  & form {
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100%;
+    justify-content: space-between;
+  }
+}
+
+.edit-background {
+  position: fixed;
+  height: 100vh;
+  width: 100vw;
+  background-color: rgba(20, 0, 0, 0.7);
+  top: 0;
+  display: none;
+  z-index: 1;
+  justify-content: center;
+  align-items: center;
+}
+
+.edit-post__edit {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.edit-body {
+  resize: none;
+  width: 70%;
+  padding: 5px;
+  border-radius: 3px;
+  border: none;
+  margin-bottom: 15px;
+  background-color: lighten($back-color, 5%);;
+  outline: none;
+  font-size: 1em;
+  text-align: center;
+}
+
+.edit-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  cursor: pointer;
+  height: 32px;
+  width: 46px;
+  background-color: white;
+  border-radius: 3px;
+  color: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid #c1c4d6;
+  &:hover {
+    border: 1px solid #8f95b2;
+  }
+}
+
+.edit-file {
+  position: relative;
+
+  & img {
+    max-height: 350px;
+  }
+  &:hover .edit-file__close {
+    position: absolute;
+    display: flex;
+
+    border-radius: 50%;
+    right: 5px;
+    width: 20px;
+    height: 20px;
+    background-color: white;
+    top: 5px;
+  }
+  & .button {
+    padding: 5px;
+    font-size: 1em;
+  }
+}
+
+.edit-file__input {
+  display: none;
+}
+
+.edit-file__close {
+  display: none;
+  cursor: pointer;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.edit-file__message {
+  font-size: 0.8em;
+  color: grey;
+}
+
+.edit-btn {
+  padding: 5px;
+  font-size: 1.1em;
+}
+
+@keyframes edit-appear {
+  0% {
+    transform: scale(0);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}

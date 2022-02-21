@@ -1,0 +1,28 @@
+.navigation {
+  display: flex;
+  width: 220px;
+  justify-content: space-between;
+  @media (max-width: 768px) {
+    width: 120px;
+    flex-direction: column;
+    height: 100%;
+  }
+  & a {
+    text-align: center;
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    background-color: $red-link;
+    
+    &:hover {
+      background-color: darken($red-link, 10%);
+    }
+  }
+  & .nav-active {
+    background-color: $red-link, 5%;
+    &:hover {
+      background-color: darken($red-link, 10%);
+    }
+  }
+}

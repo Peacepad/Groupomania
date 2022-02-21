@@ -1,0 +1,36 @@
+$back-color: #ffd7d7;
+$red-link: #FD2D01;
+
+@import "./layouts/header.scss";
+@import "./layouts/auth.scss";
+@import "./layouts/navigation.scss";
+@import "./layouts/post.scss";
+@import "./components/header-more.scss";
+@import url("https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap");
+@import "./utils/like-anim.scss";
+@import "./layouts/profil.scss";
+@import "./components/edit-post.scss";
+@import "./components/comment.scss";
+@import "./utils/form-response.scss";
+@import "./utils/button.scss";
+@import "./components/other-profil.scss";
+
+* {
+  box-sizing: border-box;
+  font-family: "Roboto";
+}
+
+body {
+  background-color: $back-color;
+  width: 100%;
+  margin: 0;
+}
+
+.redlink {
+  color: $red-link;
+  text-decoration: none;
+  cursor: pointer;
+  &:hover {
+    text-decoration: underline;
+  }
+}
