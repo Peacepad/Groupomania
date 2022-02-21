@@ -278,7 +278,6 @@ exports.getOneUser = (req, res, next) => {
 exports.delete = (req, res, next) => {
   const userId = req.params.id;
   if (res.locals.isAdmin == "true" || userId == res.locals.userId) {
-    
     connection.query("start transaction");
 
     try {
@@ -296,12 +295,9 @@ exports.delete = (req, res, next) => {
             const filepath = `./images/${filename}`;
             fs.unlinkSync(filepath);
 
-           
-
-          connection.query(
-            `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`,
-          );
-        
+            connection.query(
+              `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`
+            );
           }
         }
       });
@@ -332,12 +328,8 @@ exports.delete = (req, res, next) => {
 
     // On supprime les photos des commentaires laissés sur ses posts et les likes
     try {
-      let sql4 = `SELECT post_id from Post WHERE post_user_id = ${userId}`;
-      connection.query(sql4, (err, results) => {
-        if (err) throw err;
-        if (results.length != 0) {
-          for (let i = 0; i < results.length; i++) {
-            let mysql5 = `SELECT comment_imageURL FROM Comment where comment_post_id= ${results[i].post_id}`;
+     
+            let mysql5 = `SELECT comment_imageURL FROM Comment INNER JOIN Post on post.post_id = comment.comment_post_id INNER JOIN USER on user.user_id = post.post_user_id WHERE user_id =  ${userId}`;
 
             connection.query(mysql5, (err, commentResults) => {
               if (err) throw err;
@@ -350,29 +342,29 @@ exports.delete = (req, res, next) => {
                   fs.unlinkSync(filepath);
 
                   connection.query(
-                    `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`,
+                    `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`
                   );
                 }
               }
             });
-
-            let mysql6 = `DELETE FROM Comment WHERE comment_post_id= ${results[i].post_id}`;
-
-            connection.query(mysql6, (err, results) => {
-              if (err) throw err;
-            });
-
-            let mysql7 = `DELETE FROM like_post WHERE like_post_id= ${results[i].post_id}`;
-
-            connection.query(mysql7, (err, results) => {
-              if (err) throw err;
-            });
-          }
-        }
-      });
+          
     } catch (err) {
       connection.query("rollback");
     }
+
+    try {
+      let mysql6 = `DELETE Comment FROM Comment INNER JOIN POST ON post.post_id = comment.comment_post_id INNER JOIN USER on user.user_id = post.post_user_id WHERE user_id =  ${userId}`;
+
+      connection.query(mysql6, (err, results) => {
+        if (err) throw err;
+      });
+    } catch (err) {}
+
+    let mysql7 = `DELETE like_post FROM like_post INNER JOIN POST ON post.post_id = like_post.like_post_id INNER JOIN USER on user.user_id = post.post_user_id WHERE user_id = ${userId}`;
+
+    connection.query(mysql7, (err, results) => {
+      if (err) throw err;
+    });
 
     // on supprime ses likes
 
@@ -400,7 +392,7 @@ exports.delete = (req, res, next) => {
             fs.unlinkSync(filepath);
 
             connection.query(
-              `UPDATE Post SET post_imageURL = NULL where post_imageURL = "${results[i].post_imageURL}"`,
+              `UPDATE Post SET post_imageURL = NULL where post_imageURL = "${results[i].post_imageURL}"`
             );
           }
         }

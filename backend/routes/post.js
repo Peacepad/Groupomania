@@ -7,12 +7,11 @@ const multer = require('../middleware/multer-config');
 
 
 
-router.post('/create', auth, multer, postCtrl.create); //penser à mettre auth en middleware
+router.post('/create', auth, multer, postCtrl.create); 
 router.put('/:id', auth, multer,postCtrl.update);
 router.delete('/:id', auth, postCtrl.delete);
-router.get('/', postCtrl.getPost);
+router.get('/', auth, postCtrl.getPost);
 
-//
 
 
 
