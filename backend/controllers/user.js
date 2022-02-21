@@ -328,26 +328,24 @@ exports.delete = (req, res, next) => {
 
     // On supprime les photos des commentaires laissés sur ses posts et les likes
     try {
-     
-            let mysql5 = `SELECT comment_imageURL FROM Comment INNER JOIN Post on post.post_id = comment.comment_post_id INNER JOIN USER on user.user_id = post.post_user_id WHERE user_id =  ${userId}`;
+      let mysql5 = `SELECT comment_imageURL FROM Comment INNER JOIN Post on post.post_id = comment.comment_post_id INNER JOIN USER on user.user_id = post.post_user_id WHERE user_id =  ${userId}`;
 
-            connection.query(mysql5, (err, commentResults) => {
-              if (err) throw err;
-              for (let l = 0; l < commentResults.length; l++) {
-                if (commentResults[l].comment_imageURL !== null) {
-                  const file = commentResults[l].comment_imageURL;
-                  const filename = file.split("/images/")[1];
+      connection.query(mysql5, (err, commentResults) => {
+        if (err) throw err;
+        for (let l = 0; l < commentResults.length; l++) {
+          if (commentResults[l].comment_imageURL !== null) {
+            const file = commentResults[l].comment_imageURL;
+            const filename = file.split("/images/")[1];
 
-                  const filepath = `./images/${filename}`;
-                  fs.unlinkSync(filepath);
+            const filepath = `./images/${filename}`;
+            fs.unlinkSync(filepath);
 
-                  connection.query(
-                    `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${results[l].comment_imageURL}"`
-                  );
-                }
-              }
-            });
-          
+            connection.query(
+              `UPDATE Comment SET comment_imageURL = NULL where comment_imageURL = "${commentResults[l].comment_imageURL}"`
+            );
+          }
+        }
+      });
     } catch (err) {
       connection.query("rollback");
     }
